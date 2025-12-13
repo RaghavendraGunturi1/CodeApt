@@ -119,14 +119,15 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
-# This collects all static files into one folder for production
-STATIC_ROOT = BASE_DIR / 'staticfiles' 
-# Enable WhiteNoise storage
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Tell Django to look in the root 'static' folder too
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+
+# Keep the storage setting we added earlier
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
