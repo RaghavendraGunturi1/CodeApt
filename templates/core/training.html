@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Training Programs - CodeApt{% endblock %}
+
+{% block content %}
+
+<div class="bg-light py-5 text-center">
+    <div class="container">
+        <h1 class="fw-bold mb-3" data-aos="fade-down">Our Training Modules</h1>
+        <p class="lead text-muted">Curriculum designed for Top Service-Based Companies</p>
+    </div>
+</div>
+
+<div class="container py-5">
+    
+    <ul class="nav nav-pills mb-5 justify-content-center" id="pills-tab" role="tablist" data-aos="fade-up">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold px-5" id="pills-crt-tab" data-bs-toggle="pill" data-bs-target="#pills-crt" type="button" role="tab">
+                Campus Recruitment Training (CRT)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold px-5" id="pills-tech-tab" data-bs-toggle="pill" data-bs-target="#pills-tech" type="button" role="tab">
+                Technical Training
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="pills-tabContent">
+        
+        <div class="tab-pane fade show active" id="pills-crt" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-md-4" data-aos="flip-left">
+                    <div class="feature-card h-100">
+                        <div class="icon-box mb-3">
+                            <i class="bi bi-calculator"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Quantitative Aptitude</h4>
+                        <ul class="list-unstyled text-muted">
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Number Systems & Algebra</li>
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Percentages, Profit & Loss</li>
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Time & Work, Distance</li>
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Geometry & Mensuration</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="flip-left" data-aos-delay="100">
+                    <div class="feature-card h-100">
+                        <div class="icon-box mb-3">
+                            <i class="bi bi-puzzle"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Logical Reasoning</h4>
+                        <ul class="list-unstyled text-muted">
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Seating Arrangements</li>
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Puzzles & Riddles</li>
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Coding-Decoding</li>
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Data Sufficiency</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="flip-left" data-aos-delay="200">
+                    <div class="feature-card h-100">
+                        <div class="icon-box mb-3">
+                            <i class="bi bi-chat-quote"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Verbal Ability</h4>
+                        <ul class="list-unstyled text-muted">
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Reading Comprehension</li>
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Error Detection</li>
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Vocabulary Building</li>
+                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Resume Writing</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="pills-tech" role="tabpanel">
+            <div class="row align-items-center">
+                <div class="col-md-6 mb-4" data-aos="fade-right">
+                    <h3 class="fw-bold mb-4">Service-Based Focus</h3>
+                    <p class="text-muted mb-4">Tailored to match recruitment patterns of TCS, Infosys, Wipro, and Accenture.</p>
+                    
+                    <div class="content-card p-3 mb-3 d-flex align-items-center">
+                        <i class="bi bi-code-square fs-3 brand-cyan me-3"></i>
+                        <div>
+                            <h6 class="fw-bold m-0">Fundamentals</h6>
+                            <small class="text-muted">C, C++, Java, Python</small>
+                        </div>
+                    </div>
+                    <div class="content-card p-3 mb-3 d-flex align-items-center">
+                        <i class="bi bi-database fs-3 brand-cyan me-3"></i>
+                        <div>
+                            <h6 class="fw-bold m-0">Core Concepts</h6>
+                            <small class="text-muted">Data Structures, OOPS, SQL</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6" data-aos="fade-left">
+                    <div class="content-card terminal-card p-4 font-monospace shadow-sm">
+                        <div class="d-flex mb-3">
+                            <span class="rounded-circle bg-danger p-1 me-2"></span>
+                            <span class="rounded-circle bg-warning p-1 me-2"></span>
+                            <span class="rounded-circle bg-success p-1"></span>
+                        </div>
+                        <p class="text-success mb-0">// CodeApt Training Logic</p>
+                        <p class="text-info mb-0">while <span class="text-white">(student.isReady == false)</span> {</p>
+                        <p class="text-white mb-0 ps-4">CodeApt.teachConcept();</p>
+                        <p class="text-white mb-0 ps-4">CodeApt.mockTest();</p>
+                        <p class="text-info mb-0">}</p>
+                        <p class="text-success mb-0">return <span class="text-white">"Placed";</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

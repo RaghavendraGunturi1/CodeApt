@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Result - CodeApt{% endblock %}
+
+{% block content %}
+<div class="bg-light min-vh-100 py-5 d-flex align-items-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 text-center">
+                
+                <div class="content-card p-5 shadow-lg" data-aos="zoom-in">
+                    
+                    <div class="mb-4">
+                        {% if percentage >= 70 %}
+                            <div class="rounded-circle bg-success bg-opacity-10 d-inline-block p-4">
+                                <i class="bi bi-trophy-fill display-3 text-success"></i>
+                            </div>
+                        {% else %}
+                            <div class="rounded-circle bg-warning bg-opacity-10 d-inline-block p-4">
+                                <i class="bi bi-emoji-neutral-fill display-3 text-warning"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <h2 class="fw-bold brand-black mb-1">
+                        {% if percentage >= 70 %}
+                            Excellent Work!
+                        {% else %}
+                            Keep Practicing!
+                        {% endif %}
+                    </h2>
+                    <p class="text-muted">You have completed the <strong>{{ subject.name }}</strong> assessment.</p>
+
+                    <hr class="my-4">
+
+                    <div class="row text-center mb-4">
+                        <div class="col-4 border-end">
+                            <h3 class="fw-bold mb-0">{{ score }}</h3>
+                            <small class="text-muted">Correct</small>
+                        </div>
+                        <div class="col-4 border-end">
+                            <h3 class="fw-bold mb-0">{{ total }}</h3>
+                            <small class="text-muted">Total</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="fw-bold mb-0 {% if percentage >= 70 %}text-success{% else %}text-warning{% endif %}">
+                                {{ percentage }}%
+                            </h3>
+                            <small class="text-muted">Score</small>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'quiz' subject.slug %}" class="btn btn-primary fw-bold">Retake Test</a>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

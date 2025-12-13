@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}Contact Us - CodeApt{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-md-5 mb-4">
+            <h2 class="fw-bold text-primary">Get in Touch</h2>
+            <p class="text-muted">Interested in our Campus Recruitment Training or Technical programs? Reach out to us.</p>
+            
+            <div class="mt-4">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="fs-4 text-primary me-3"><i class="bi bi-geo-alt-fill"></i></div>
+                    <div>
+                        <h5 class="fw-bold mb-1">Office Address</h5>
+                        <p class="mb-0">CodeApt LLP, Nagole,<br>Hyderabad, Telangana.</p>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-start mb-3">
+                    <div class="fs-4 text-primary me-3"><i class="bi bi-envelope-fill"></i></div>
+                    <div>
+                        <h5 class="fw-bold mb-1">Email Us</h5>
+                        <p class="mb-0">director@codeapt.in</p>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-start">
+                    <div class="fs-4 text-primary me-3"><i class="bi bi-telephone-fill"></i></div>
+                    <div>
+                        <h5 class="fw-bold mb-1">Call Us</h5>
+                        <p class="mb-0">+91 99 66 88 456 2</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="mb-4">Send us a Message</h3>
+                    
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-success">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %} <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            {{ form.name }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            {{ form.email }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Subject</label>
+                            {{ form.subject }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Message</label>
+                            {{ form.message }}
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

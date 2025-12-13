@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Code Arena - CodeApt</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+
+    <style>
+        body { background-color: #f4f7f6; height: 100vh; overflow: hidden; }
+        
+        /* Layout Grid */
+        .arena-container {
+            display: grid;
+            grid-template-columns: 350px 1fr; /* Left Sidebar | Editor Area */
+            height: 100vh;
+        }
+
+        /* Left Sidebar (Problem/Settings) */
+        .sidebar {
+            background: white;
+            border-right: 1px solid #ddd;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Right Editor Area */
+        .editor-area {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* The actual Code Editor */
+        #editor { 
+            flex-grow: 1;
+            font-size: 16px;
+        }
+
+        /* Output Console (Bottom) */
+        .console {
+            height: 150px;
+            background: #1e1e1e;
+            color: white;
+            padding: 15px;
+            font-family: monospace;
+            overflow-y: auto;
+            border-top: 4px solid #00C2E0;
+        }
+        
+        /* Buttons */
+        .btn-run {
+            background-color: #00C2E0;
+            color: white;
+            font-weight: bold;
+            border: none;
+        }
+        .btn-run:hover { background-color: #00a0b8; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="arena-container">
+    
+    <div class="sidebar">
+        <div class="mb-4">
+            <a href="{% url 'dashboard' %}" class="text-decoration-none text-muted small">
+                <i class="bi bi-arrow-left"></i> Exit to Dashboard
+            </a>
+        </div>
+        
+        <h4 class="fw-bold">Playground</h4>
+        <p class="text-muted small">Select your language and start coding.</p>
+        
+        <hr>
+
+        <div class="mb-3">
+            <label class="fw-bold small text-muted">Language</label>
+            <select id="language" class="form-select mt-1" onchange="changeLanguage()">
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="c_cpp">C++</option>
+                <option value="javascript">JavaScript</option>
+            </select>
+        </div>
+
+        <div class="mt-auto">
+            <button class="btn btn-run w-100 py-2" onclick="runCode()">
+                <i class="bi bi-play-fill"></i> Run Code
+            </button>
+        </div>
+    </div>
+
+    <div class="editor-area">
+        <div class="bg-white p-2 border-bottom d-flex justify-content-between align-items-center px-3">
+            <span class="fw-bold small text-muted">main.py</span>
+            <span class="badge bg-success bg-opacity-10 text-success">Ready</span>
+        </div>
+
+        <div id="editor"># Write your Python code here...
+print("Hello, CodeApt!")</div>
+
+        <div class="console" id="output">
+            <span class="text-secondary">// Output will appear here...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize Ace Editor
+    var editor = ace.edit("editor");
+    editor.setTheme("ace/theme/monokai"); // Dark Theme
+    editor.session.setMode("ace/mode/python"); // Default Language
+
+    // Change Language Logic
+    function changeLanguage() {
+        var lang = document.getElementById("language").value;
+        var mode = "ace/mode/" + lang;
+        editor.session.setMode(mode);
+        
+        // Update starter code
+        if(lang === 'python') editor.setValue('print("Hello World")');
+        if(lang === 'java') editor.setValue('public class Main {\n\tpublic static void main(String[] args) {\n\t\tSystem.out.println("Hello World");\n\t}\n}');
+        if(lang === 'c_cpp') editor.setValue('#include <stdio.h>\n\nint main() {\n\tprintf("Hello World");\n\treturn 0;\n}');
+        if(lang === 'javascript') editor.setValue('console.log("Hello World");');
+    }
+
+    // Mock Run Logic (Just to test UI)
+    // Real Run Logic using Fetch API
+    function runCode() {
+        var code = editor.getValue();
+        var language = document.getElementById("language").value;
+        var outputBox = document.getElementById("output");
+        
+        // Show loading state
+        outputBox.innerHTML = '<span class="text-warning"><i class="bi bi-gear-wide-connected fa-spin"></i> Compiling...</span>';
+        
+        fetch('/run_code/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                code: code,
+                language: language
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Display the real output from the server
+            // We use <pre> to keep formatting (newlines, spaces) correct
+            outputBox.innerHTML = '<span class="text-success">Output:</span><br><pre class="text-white mt-2" style="white-space: pre-wrap;">' + data.output + '</pre>';
+        })
+        .catch(error => {
+            outputBox.innerHTML = '<span class="text-danger">Error: Could not connect to server.</span>';
+        });
+    }
+</script>
+
+</body>
+</html>

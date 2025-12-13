@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ subject.name }} - CodeApt{% endblock %}
+
+{% block content %}
+<div class="bg-light min-vh-100 py-5">
+    <div class="container">
+        
+        <div class="mb-4">
+            <a href="{% url 'dashboard' %}" class="text-decoration-none text-muted fw-bold small">
+                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-4 mb-4">
+                <div class="content-card p-4 text-center sticky-top" style="top: 100px; z-index: 1;">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-4 d-inline-block mb-3">
+                        <i class="bi bi-journal-code fs-1 brand-cyan"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1">{{ subject.name }}</h2>
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary mb-3">
+                        {{ subject.program.name }}
+                    </span>
+                    <p class="text-muted small">
+                        Master the core concepts of {{ subject.name }}. Complete all topics to finish the module.
+                    </p>
+                    
+                    <hr class="my-4 opacity-10">
+                    
+                    <div class="d-flex justify-content-between text-muted small mb-2">
+                        <span>Topics</span>
+                        <span class="fw-bold text-dark">{{ topics.count }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>Status</span>
+                        <span class="fw-bold text-warning">In Progress</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>Status</span>
+                        <span class="fw-bold text-warning">In Progress</span>
+                    </div>
+                    <div class="mt-4">
+                        <a href="{% url 'quiz' subject.slug %}" class="btn btn-primary w-100 shadow-sm">
+                            <i class="bi bi-pencil-square me-2"></i> Take Assessment
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <h4 class="fw-bold mb-4">Course Content</h4>
+                
+                {% if topics %}
+                    <div class="accordion" id="topicsAccordion">
+                        {% for topic in topics %}
+                        <div class="content-card mb-3 border-0 overflow-hidden">
+                            <div class="accordion-item border-0">
+                                <h2 class="accordion-header" id="heading{{ topic.id }}">
+                                    <button class="accordion-button collapsed fw-bold bg-white shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ topic.id }}">
+                                        <span class="me-3 text-muted">#{{ topic.order }}</span> {{ topic.name }}
+                                    </button>
+                                </h2>
+                                <div id="collapse{{ topic.id }}" class="accordion-collapse collapse" data-bs-parent="#topicsAccordion">
+                                    <div class="accordion-body text-muted small bg-light border-top">
+                                        {{ topic.content|truncatewords:30 }}
+                                        <div class="mt-2">
+                                            <a href="{% url 'topic_detail' topic.id %}" class="btn btn-sm btn-primary">Read Topic</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        No topics have been added to this course yet.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Home - CodeApt{% endblock %}
+
+{% block content %}
+
+<section class="hero-section d-flex align-items-center position-relative overflow-hidden">
+    <div class="position-absolute top-0 start-0 translate-middle rounded-circle bg-info opacity-10 blur-3xl" style="width: 600px; height: 600px; filter: blur(100px); z-index: 0;"></div>
+    <div class="position-absolute bottom-0 end-0 translate-middle rounded-circle bg-primary opacity-10 blur-3xl" style="width: 500px; height: 500px; filter: blur(100px); z-index: 0;"></div>
+
+    <div class="container position-relative z-2">
+        <div class="row align-items-center">
+            
+            <div class="col-lg-6">
+                <div class="d-inline-block border border-info border-opacity-25 rounded-pill px-3 py-2 mb-4 bg-white shadow-sm" data-aos="fade-right">
+                    <small class="brand-cyan fw-bold">✨ Redefining Campus Placement Training</small>
+                </div>
+                <h1 class="display-3 fw-bold mb-4" data-aos="fade-up">
+                    Master the Art of <br>
+                    <span style="color: var(--brand-cyan);">Code & Aptitude.</span>
+                </h1>
+                <p class="lead text-muted mb-5 w-75" data-aos="fade-up" data-aos-delay="100">
+                    The ultimate training ecosystem tailored for TCS, Infosys, and Accenture placements. 
+                    Don't just learn. <span class="fw-bold brand-black">Evolve.</span>
+                </p>
+                <div class="d-flex gap-3" data-aos="fade-up" data-aos-delay="200">
+                    <a href="{% url 'training' %}" class="btn btn-primary btn-lg shadow-sm">Explore Modules</a>
+                    <a href="{% url 'contact' %}" class="btn btn-outline-primary btn-lg">Join Now</a>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 d-none d-lg-block" data-aos="zoom-in" data-aos-delay="300">
+                <div class="content-card terminal-card p-4 position-relative shadow-lg" style="transform: rotate(-2deg);">
+                    
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-danger p-2 me-2"></div>
+                        <div class="rounded-circle bg-warning p-2 me-2"></div>
+                        <div class="rounded-circle bg-success p-2"></div>
+                    </div>
+                    
+                    <code class="d-block text-success mb-2" style="font-family: 'Courier New', monospace;">// Future Placement Status</code>
+                    <code class="d-block" style="font-family: 'Courier New', monospace; line-height: 1.6;">
+                        <span class="text-info">class</span> <span class="text-warning">Student</span> {<br>
+                        &nbsp;&nbsp;<span class="text-info">def</span> <span class="text-method">train_at_codeapt</span>() {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;skills = <span class="text-info">"Industry Ready"</span>;<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;offer_letter = <span class="text-info">True</span>;<br>
+                        &nbsp;&nbsp;}<br>
+                        }
+                    </code>
+                </div>
+                
+                <div class="content-card py-3 px-4 position-absolute bottom-0 end-0 mb-n4 me-n4 shadow-lg border-0" style="background: white;">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-2 me-3">
+                            <i class="bi bi-check-circle-fill text-success fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-0 brand-black">200+</h5>
+                            <small class="text-muted">Infosys Selects</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5 bg-white position-relative">
+    <div class="container py-5 z-2 position-relative">
+        <div class="text-center mb-5" data-aos="fade-up">
+            <h2 class="fw-bold display-5">Why Choose CodeApt?</h2>
+            <p class="text-muted">Advanced curriculum meeting modern industry standards.</p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card h-100">
+                    <div class="icon-box">
+                        <i class="bi bi-cpu"></i>
+                    </div>
+                    <h3 class="h4 fw-bold">Tech Stack Training</h3>
+                    <p class="text-muted">Deep dive into Java, Python, and Data Structures. We don't just teach syntax; we teach logic.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-card h-100">
+                    <div class="icon-box">
+                        <i class="bi bi-lightbulb"></i>
+                    </div>
+                    <h3 class="h4 fw-bold">Logical Precision</h3>
+                    <p class="text-muted">Master quantitative aptitude and reasoning with shortcuts designed for speed tests.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                <div class="feature-card h-100">
+                    <div class="icon-box">
+                        <i class="bi bi-buildings"></i>
+                    </div>
+                    <h3 class="h4 fw-bold">Company Targeting</h3>
+                    <p class="text-muted">Specific drill sessions for TCS NQT, Infosys, and Wipro recruitment patterns.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container pb-5" data-aos="zoom-in">
+    <div class="stats-section text-center position-relative overflow-hidden">
+        <div class="position-absolute top-0 end-0 bg-white opacity-10 rounded-circle" style="width: 300px; height: 300px; transform: translate(30%, -30%);"></div>
+        
+        <h2 class="mb-5 fw-bold text-white letter-spacing-2">PROVEN TRACK RECORD</h2>
+        <div class="row position-relative z-2">
+            <div class="col-md-3 mb-4 mb-md-0">
+                <div class="stat-number">201+</div>
+                <p class="text-white">Infosys</p>
+            </div>
+            <div class="col-md-3 mb-4 mb-md-0">
+                <div class="stat-number">196+</div>
+                <p class="text-white">Accenture</p>
+            </div>
+            <div class="col-md-3 mb-4 mb-md-0">
+                <div class="stat-number">100+</div>
+                <p class="text-white">Cognizant</p>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-number">12+</div>
+                <p class="text-white">Partner Colleges</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

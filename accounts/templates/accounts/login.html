@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - CodeApt{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="content-card p-5 shadow-lg" data-aos="zoom-in">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold brand-black">Welcome Back</h2>
+                    <p class="text-muted">Please log in to your student portal</p>
+                </div>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Username</label>
+                        <input type="text" name="username" class="form-control" placeholder="Enter username" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="Enter password" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 mt-3 shadow-sm">Log In</button>
+                </form>
+                
+                <div class="text-center mt-4">
+                    <p class="small text-muted">Don't have an account? <a href="{% url 'register' %}" class="brand-cyan text-decoration-none fw-bold">Sign Up</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

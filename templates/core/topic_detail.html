@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ topic.name }} - CodeApt{% endblock %}
+
+{% block content %}
+<div class="bg-light min-vh-100 py-5">
+    <div class="container">
+        
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'course_detail' subject.slug %}" class="text-decoration-none text-muted">{{ subject.name }}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ topic.name }}</li>
+            </ol>
+        </nav>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="content-card p-5">
+                    
+                    <div class="border-bottom pb-4 mb-4">
+                        <span class="badge bg-info bg-opacity-10 text-info border border-info mb-2">Topic #{{ topic.order }}</span>
+                        <h1 class="fw-bold brand-black">{{ topic.name }}</h1>
+                    </div>
+
+                    <div class="topic-content text-muted" style="line-height: 1.8; font-size: 1.1rem;">
+                        {{ topic.content|linebreaks }}
+                    </div>
+
+                    <div class="mt-5 pt-4 border-top d-flex justify-content-between">
+                        <a href="{% url 'course_detail' subject.slug %}" class="btn btn-outline-secondary px-4">
+                            <i class="bi bi-arrow-left me-2"></i> Back to Course
+                        </a>
+                        
+                        <button class="btn btn-success px-4 text-white">
+                            Mark as Complete <i class="bi bi-check-lg ms-2"></i>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
