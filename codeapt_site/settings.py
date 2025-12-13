@@ -76,7 +76,7 @@ DATABASES = {
 }
 
 # If running on Vercel (or if we set the link manually), use Cloud DB
-database_url = psql 'postgresql://neondb_owner:npg_X5ntxVCyc9bQ@ep-icy-king-a121yr5z-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+database_url = 'postgresql://neondb_owner:npg_X5ntxVCyc9bQ@ep-icy-king-a121yr5z-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
 if database_url:
     DATABASES["default"] = dj_database_url.parse(database_url)
     DATABASES["default"]["OPTIONS"] = {
