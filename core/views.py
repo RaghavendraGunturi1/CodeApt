@@ -271,6 +271,12 @@ def placements(request):
                 'college': 'Malla Reddy Engg. College for Women (MRECW)'
             },
             {
+                'company': 'Infosys',
+                'count': '92',
+                'subtext': 'Selections from a Single Group',
+                'college': 'KITS Group, Guntur'  # <--- NEW RECORD ADDED HERE
+            },
+            {
                 'company': 'Accenture',
                 'count': '196',
                 'subtext': 'Selections from a Single College',
