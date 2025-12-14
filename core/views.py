@@ -262,6 +262,10 @@ def placements(request):
             "Swaranandra Engg. College", "AITS, Tirupati",
             "PBR VITS, Kavali", "NEC, Narasaraopet",  # Added
             "MEC, Guntur"  # Added
+            "AVNIET, Hyderabad",               # <--- NEW ADDITION
+            "KGRCET, Hyderabad",               # <--- NEW ADDITION
+            "KPRIT, Hyderabad",                # <--- NEW ADDITION
+            "Sreerama Engg. College, Tirupati" # <--- NEW ADDITION
         ],
         'success_stories': [
             {
