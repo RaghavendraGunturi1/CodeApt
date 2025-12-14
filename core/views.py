@@ -289,6 +289,12 @@ def placements(request):
                 'college': 'SRIT Anantapur'
             },
             {
+                'company': 'Cognizant (CTS)',
+                'count': '85*',
+                'subtext': 'Selections from a Single College',
+                'college': 'ACE Engineering College (ACEEC)'  # <--- NEW RECORD
+            },
+            {
                 'company': 'HCL',
                 'count': '50',
                 'subtext': 'Special Recruitment Drive',
