@@ -14,7 +14,7 @@ import os
 SECRET_KEY = 'django-insecure-_x%jgn0z=p6z_ac4j2$*v01(tpjx-f)^vi^()jt!2aw!jxt--3'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['codeapt.in', 'www.codeapt.in', 'localhost', '127.0.0.1','.vercel.app']
 
@@ -35,13 +35,13 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # <--- ADD THIS LINE
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # <--- ADD THIS LINE
 ]
 
 ROOT_URLCONF = 'codeapt_site.urls'
@@ -75,8 +75,8 @@ DATABASES = {
     }
 }
 
-# If running on Vercel (or if we set the link manually), use Cloud DB
-database_url = 'postgresql://neondb_owner:npg_X5ntxVCyc9bQ@ep-icy-king-a121yr5z-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+ #If running on Vercel (or if we set the link manually), use Cloud DB
+database_url = "postgresql://neondb_owner:npg_X5ntxVCyc9bQ@ep-icy-king-a121yr5z-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
 if database_url:
     DATABASES["default"] = dj_database_url.parse(database_url)
     DATABASES["default"]["OPTIONS"] = {
@@ -119,14 +119,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles_build' / 'static'
-# Tell Django to look in the root 'static' folder too
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',
+    BASE_DIR / "static",
 ]
+# This collects all static files into one folder for production
+STATIC_ROOT = BASE_DIR / 'staticfiles' 
+# Enable WhiteNoise storage
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Keep the storage setting we added earlier
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

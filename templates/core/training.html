@@ -1,119 +1,172 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Training Programs - CodeApt{% endblock %}
 
 {% block content %}
 
-<div class="bg-light py-5 text-center">
-    <div class="container">
-        <h1 class="fw-bold mb-3" data-aos="fade-down">Our Training Modules</h1>
-        <p class="lead text-muted">Curriculum designed for Top Service-Based Companies</p>
+<div class="bg-dark text-white py-5 text-center" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+    <div class="container py-4">
+        <h1 class="display-4 fw-bold mb-3" data-aos="fade-down">Master the Skills That Matter</h1>
+        <p class="lead text-light opacity-75 mx-auto" style="max-width: 800px;">
+            We don't just teach code; we build careers. Choose the specialized track that aligns with your dream company.
+        </p>
+        <div data-aos="fade-up" data-aos-delay="200">
+            <a href="{% static 'docs/CodeApt_Brochure.pdf' %}" class="btn btn-outline-light btn-lg fw-bold rounded-pill px-4 hover-scale" download>
+                <i class="bi bi-file-earmark-pdf-fill me-2"></i> Download Brochure
+            </a>
+        </div>
     </div>
 </div>
 
 <div class="container py-5">
     
-    <ul class="nav nav-pills mb-5 justify-content-center" id="pills-tab" role="tablist" data-aos="fade-up">
+    <ul class="nav nav-pills mb-5 justify-content-center gap-3" id="pills-tab" role="tablist" data-aos="fade-up">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold px-5" id="pills-crt-tab" data-bs-toggle="pill" data-bs-target="#pills-crt" type="button" role="tab">
-                Campus Recruitment Training (CRT)
+            <button class="nav-link active fw-bold px-4 py-3 rounded-pill shadow-sm" id="pills-service-tab" data-bs-toggle="pill" data-bs-target="#pills-service" type="button" role="tab">
+                <i class="bi bi-people-fill me-2"></i> Service-Based Track
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold px-5" id="pills-tech-tab" data-bs-toggle="pill" data-bs-target="#pills-tech" type="button" role="tab">
-                Technical Training
+            <button class="nav-link fw-bold px-4 py-3 rounded-pill shadow-sm" id="pills-product-tab" data-bs-toggle="pill" data-bs-target="#pills-product" type="button" role="tab">
+                <i class="bi bi-code-slash me-2"></i> Product-Based Track
             </button>
         </li>
     </ul>
 
     <div class="tab-content" id="pills-tabContent">
         
-        <div class="tab-pane fade show active" id="pills-crt" role="tabpanel">
-            <div class="row g-4">
-                <div class="col-md-4" data-aos="flip-left">
-                    <div class="feature-card h-100">
-                        <div class="icon-box mb-3">
-                            <i class="bi bi-calculator"></i>
+        <div class="tab-pane fade show active" id="pills-service" role="tabpanel">
+            <div class="text-center mb-5" data-aos="fade-up">
+                <span class="badge bg-primary-subtle text-primary mb-2 px-3 py-2 rounded-pill fw-bold">Campus Recruitment Training (CRT)</span>
+                <h2 class="fw-bold display-6">{{ service_track.title }}</h2>
+                <p class="lead text-muted">{{ service_track.desc }}</p>
+            </div>
+
+            <div class="row g-4 mb-5">
+                {% for module in service_track.modules %}
+                <div class="col-md-6 col-lg-3" data-aos="zoom-in" data-aos-delay="{{ forloop.counter0|add:100 }}">
+                    <div class="h-100 p-4 border rounded-3 bg-white shadow-sm hover-lift">
+                        <div class="mb-3 text-primary">
+                            <i class="bi bi-check-circle-fill fs-3"></i>
                         </div>
-                        <h4 class="fw-bold mb-3">Quantitative Aptitude</h4>
-                        <ul class="list-unstyled text-muted">
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Number Systems & Algebra</li>
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Percentages, Profit & Loss</li>
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Time & Work, Distance</li>
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Geometry & Mensuration</li>
+                        <h5 class="fw-bold mb-3">{{ module.name }}</h5>
+                        <ul class="list-unstyled text-muted small mb-0">
+                            {% for item in module.details %}
+                            <li class="mb-2"><i class="bi bi-dot"></i> {{ item }}</li>
+                            {% endfor %}
                         </ul>
                     </div>
                 </div>
-                <div class="col-md-4" data-aos="flip-left" data-aos-delay="100">
-                    <div class="feature-card h-100">
-                        <div class="icon-box mb-3">
-                            <i class="bi bi-puzzle"></i>
-                        </div>
-                        <h4 class="fw-bold mb-3">Logical Reasoning</h4>
-                        <ul class="list-unstyled text-muted">
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Seating Arrangements</li>
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Puzzles & Riddles</li>
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Coding-Decoding</li>
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Data Sufficiency</li>
-                        </ul>
-                    </div>
-                </div>
-                <div class="col-md-4" data-aos="flip-left" data-aos-delay="200">
-                    <div class="feature-card h-100">
-                        <div class="icon-box mb-3">
-                            <i class="bi bi-chat-quote"></i>
-                        </div>
-                        <h4 class="fw-bold mb-3">Verbal Ability</h4>
-                        <ul class="list-unstyled text-muted">
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Reading Comprehension</li>
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Error Detection</li>
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Vocabulary Building</li>
-                            <li class="mb-2"><i class="bi bi-check2 brand-cyan me-2"></i>Resume Writing</li>
-                        </ul>
-                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="p-4 bg-light rounded-3 text-center" data-aos="fade-up">
+                <p class="fw-bold text-uppercase text-muted small mb-3">Target Companies</p>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    {% for co in service_track.companies %}
+                    <span class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-sm d-inline-flex align-items-center">
+                        <img src="{{ co.logo }}" alt="{{ co.name }}" class="me-2 rounded-circle" style="width: 20px; height: 20px; object-fit: contain;">
+                        {{ co.name }}
+                    </span>
+                    {% endfor %}
                 </div>
             </div>
         </div>
 
-        <div class="tab-pane fade" id="pills-tech" role="tabpanel">
-            <div class="row align-items-center">
-                <div class="col-md-6 mb-4" data-aos="fade-right">
-                    <h3 class="fw-bold mb-4">Service-Based Focus</h3>
-                    <p class="text-muted mb-4">Tailored to match recruitment patterns of TCS, Infosys, Wipro, and Accenture.</p>
-                    
-                    <div class="content-card p-3 mb-3 d-flex align-items-center">
-                        <i class="bi bi-code-square fs-3 brand-cyan me-3"></i>
-                        <div>
-                            <h6 class="fw-bold m-0">Fundamentals</h6>
-                            <small class="text-muted">C, C++, Java, Python</small>
+        <div class="tab-pane fade" id="pills-product" role="tabpanel">
+            <div class="text-center mb-5" data-aos="fade-up">
+                <span class="badge bg-warning-subtle text-dark mb-2 px-3 py-2 rounded-pill fw-bold">High-Package Career Path</span>
+                <h2 class="fw-bold display-6">{{ product_track.title }}</h2>
+                <p class="lead text-muted">{{ product_track.desc }}</p>
+            </div>
+
+            <div class="row align-items-center mb-5">
+                <div class="col-lg-7" data-aos="fade-right">
+                    <div class="row g-3">
+                        {% for module in product_track.modules %}
+                        <div class="col-md-6" 
+                            data-aos="zoom-in" 
+                            data-aos-delay="{% widthratio forloop.counter0 1 100 %}">
+                            
+                            <div class="p-3 border rounded bg-white h-100 d-flex align-items-start hover-lift shadow-sm">
+                                <i class="bi bi-lightning-charge-fill text-warning fs-4 me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-2">{{ module.name }}</h6>
+                                    <p class="small text-muted mb-0">{{ module.details|join:", " }}</p>
+                                </div>
+                            </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    <div class="content-card p-3 mb-3 d-flex align-items-center">
-                        <i class="bi bi-database fs-3 brand-cyan me-3"></i>
-                        <div>
-                            <h6 class="fw-bold m-0">Core Concepts</h6>
-                            <small class="text-muted">Data Structures, OOPS, SQL</small>
+                </div>
+
+                <div class="col-lg-5 mt-4 mt-lg-0" data-aos="flip-right">
+                    <div class="content-card terminal-card p-4 font-monospace shadow-lg" style="min-height: 320px; position: relative;">
+                        
+                        <div class="d-flex mb-3 border-bottom border-secondary pb-2">
+                            <span class="rounded-circle bg-danger me-2" style="width:10px; height:10px;"></span>
+                            <span class="rounded-circle bg-warning me-2" style="width:10px; height:10px;"></span>
+                            <span class="rounded-circle bg-success" style="width:10px; height:10px;"></span>
+                            <span class="ms-auto text-white-50 small" style="font-family: sans-serif;">main.py</span>
+                        </div>
+
+                        <div style="line-height: 1.6;">
+                            <span class="text-success">// Product Company Interview</span><br>
+                            <span class="text-info">class</span> <span class="text-warning">Candidate</span>:<br>
+                            
+                            <div class="ps-3">
+                                <span class="text-info">def</span> <span class="text-method">solve_hard_problem</span>(self):<br>
+                                <div class="ps-3">
+                                    <span class="text-white">skills = [</span><span class="text-success">"DSA"</span>, <span class="text-success">"SystemDesign"</span><span class="text-white">]</span><br>
+                                    <span class="text-info">if</span> <span class="text-white">"DSA"</span> <span class="text-info">in</span> skills:<br>
+                                    <div class="ps-3">
+                                        <span class="text-info">return</span> <span class="text-warning">"Offer Letter"</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <br>
+                            <span class="text-white">print(Candidate().solve_hard_problem())</span>
+                            <br>
+                            <span class="text-success fw-bold">> "Offer Letter"</span><span class="blinking-cursor">|</span>
                         </div>
                     </div>
                 </div>
-                
-                <div class="col-md-6" data-aos="fade-left">
-                    <div class="content-card terminal-card p-4 font-monospace shadow-sm">
-                        <div class="d-flex mb-3">
-                            <span class="rounded-circle bg-danger p-1 me-2"></span>
-                            <span class="rounded-circle bg-warning p-1 me-2"></span>
-                            <span class="rounded-circle bg-success p-1"></span>
-                        </div>
-                        <p class="text-success mb-0">// CodeApt Training Logic</p>
-                        <p class="text-info mb-0">while <span class="text-white">(student.isReady == false)</span> {</p>
-                        <p class="text-white mb-0 ps-4">CodeApt.teachConcept();</p>
-                        <p class="text-white mb-0 ps-4">CodeApt.mockTest();</p>
-                        <p class="text-info mb-0">}</p>
-                        <p class="text-success mb-0">return <span class="text-white">"Placed";</span></p>
-                    </div>
+            </div>
+
+             <div class="p-4 bg-dark text-white rounded-3 text-center" data-aos="fade-up" style="background: linear-gradient(145deg, #212529, #343a40);">
+                <p class="fw-bold text-uppercase text-white-50 small mb-3">Target Companies</p>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    {% for co in product_track.companies %}
+                    <span class="badge bg-transparent border border-secondary text-light px-3 py-2 rounded-pill d-inline-flex align-items-center hover-glow">
+                        <img src="{{ co.logo }}" alt="{{ co.name }}" class="me-2 rounded-circle bg-white p-1" style="width: 24px; height: 24px; object-fit: contain;">
+                        {{ co.name }}
+                    </span>
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    /* Card Hover Effects */
+    .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; border-color: #0d6efd !important; }
+    
+    /* Navigation Pills */
+    .nav-pills .nav-link { background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; }
+    .nav-pills .nav-link.active { background-color: #0d6efd; color: white; border-color: #0d6efd; }
+
+    /* Blinking Cursor Animation for Terminal */
+    .blinking-cursor {
+        font-weight: bold;
+        color: #00C2E0;
+        animation: blink 1s step-end infinite;
+    }
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+    }
+</style>
 {% endblock %}

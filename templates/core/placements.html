@@ -1,74 +1,64 @@
 {% extends 'base.html' %}
 
-{% block title %}Placements - CodeApt{% endblock %}
+{% block title %}Placements & Partners - CodeApt{% endblock %}
 
 {% block content %}
 
-<div class="bg-light py-5 text-center">
+<div class="bg-light py-5 text-center border-bottom">
     <div class="container">
-        <h1 class="display-4 fw-bold mb-3" data-aos="zoom-in">Success Stories</h1>
-        <p class="lead text-muted" data-aos="fade-up">Transforming Students into Corporate Professionals</p>
+        <h1 class="display-4 fw-bold mb-3" data-aos="zoom-in">Proven Impact</h1>
+        <p class="lead text-muted mx-auto" style="max-width: 700px;" data-aos="fade-up">
+            Our results speak louder than words. We specialize in transforming entire batches into placement-ready professionals.
+        </p>
     </div>
 </div>
 
 <div class="container py-5">
     
-    <div class="content-card p-5 mb-5" data-aos="fade-up">
-        <div class="text-center mb-5">
-            <h2 class="fw-bold">Placement Records</h2>
-            <p class="brand-cyan fw-bold">Consistent results across top Service-Based Companies</p>
-        </div>
-
-        <div class="row g-4 text-center">
-            <div class="col-md-3">
-                <div class="p-3">
-                    <h5 class="fw-bold">Infosys</h5>
-                    <h2 class="display-4 fw-bold brand-cyan">201+</h2>
-                    <p class="small text-muted">Selections across MRCEW, KITS, Pragati & more</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="p-3 border-start border-end">
-                    <h5 class="fw-bold">Accenture</h5>
-                    <h2 class="display-4 fw-bold brand-cyan">196+</h2>
-                    <p class="small text-muted">Major selections from ACE Engineering College</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="p-3 border-end">
-                    <h5 class="fw-bold">Cognizant</h5>
-                    <h2 class="display-4 fw-bold brand-cyan">100+</h2>
-                    <p class="small text-muted">Selections from SRIT & ACE</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="p-3">
-                    <h5 class="fw-bold">HCL</h5>
-                    <h2 class="display-4 fw-bold brand-cyan">50+</h2>
-                    <p class="small text-muted">Special selections from KITS Guntur</p>
+    <div class="row g-4 mb-5 justify-content-center">
+        {% for story in success_stories %}
+        <div class="col-md-6 col-lg-3" data-aos="flip-up" data-aos-delay="{{ forloop.counter0|add:50 }}">
+            <div class="p-4 border rounded-3 shadow-sm h-100 bg-white text-center position-relative overflow-hidden success-card">
+                <div class="position-absolute top-0 start-50 translate-middle bg-light rounded-circle" style="width: 120px; height: 120px; z-index: 0;"></div>
+                
+                <div class="position-relative" style="z-index: 1;">
+                    <h5 class="fw-bold text-secondary mb-1">{{ story.company }}</h5>
+                    <h2 class="display-3 fw-bold text-primary my-2">{{ story.count }}</h2>
+                    <span class="badge bg-success-subtle text-success border border-success mb-3">Selections</span>
+                    
+                    <hr class="opacity-25 my-3">
+                    
+                    <p class="small fw-bold text-dark mb-1">{{ story.college }}</p>
+                    <p class="small text-muted fst-italic mb-0">{{ story.subtext }}</p>
                 </div>
             </div>
         </div>
+        {% endfor %}
     </div>
 
-    <div class="text-center mb-5">
-        <h3 class="fw-bold">Our Partner Colleges</h3>
-        <p class="text-muted">Trusted by premier institutions</p>
-    </div>
+    <div class="py-5">
+        <div class="text-center mb-5" data-aos="fade-up">
+            <h2 class="fw-bold">Our Academic Partners</h2>
+            <p class="text-muted">Trusted by premier institutions across the region.</p>
+        </div>
 
-    <div class="row row-cols-1 row-cols-md-3 g-3">
-        <div class="col" data-aos="fade-up"><div class="content-card p-3 text-center fw-bold text-muted">IARE, Hyderabad</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="50"><div class="content-card p-3 text-center fw-bold text-muted">SR University, Warangal</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="100"><div class="content-card p-3 text-center fw-bold text-muted">MRCEW, Hyderabad</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="150"><div class="content-card p-3 text-center fw-bold text-muted">ACE Engg. College</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="200"><div class="content-card p-3 text-center fw-bold text-muted">Pragati Engg. College</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="250"><div class="content-card p-3 text-center fw-bold text-muted">Sreedevi Women's College</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="300"><div class="content-card p-3 text-center fw-bold text-muted">SRIT, Anantapur</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="350"><div class="content-card p-3 text-center fw-bold text-muted">KITS, Guntur</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="400"><div class="content-card p-3 text-center fw-bold text-muted">KITS, Warangal</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="450"><div class="content-card p-3 text-center fw-bold text-muted">KIET, Kakinada</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="500"><div class="content-card p-3 text-center fw-bold text-muted">VBIT, Hyderabad</div></div>
-        <div class="col" data-aos="fade-up" data-aos-delay="550"><div class="content-card p-3 text-center fw-bold text-muted">Swarnandhra Engg. College</div></div>
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 justify-content-center">
+            {% for college in partners %}
+            <div class="col" data-aos="zoom-in" data-aos-delay="{{ forloop.counter0|add:20 }}">
+                <div class="p-3 border rounded bg-white h-100 d-flex align-items-center justify-content-center text-center partner-card shadow-sm">
+                    <span class="fw-semibold text-dark small">{{ college }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
+
+<style>
+    .success-card { transition: transform 0.3s ease; border-top: 4px solid #0d6efd !important; }
+    .success-card:hover { transform: translateY(-5px); }
+    
+    .partner-card { transition: all 0.3s ease; border-left: 3px solid transparent; min-height: 80px; }
+    .partner-card:hover { transform: translateX(5px); border-left: 3px solid #0d6efd; background-color: #f8f9fa !important; }
+</style>
 {% endblock %}

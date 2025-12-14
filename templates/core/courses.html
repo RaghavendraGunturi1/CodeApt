@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Browse Courses - CodeApt{% endblock %}
+
+{% block content %}
+<div class="bg-light py-5 text-center">
+    <div class="container">
+        <h1 class="fw-bold display-5 mb-3" data-aos="zoom-in">Level Up Your Skills</h1>
+        <p class="lead text-muted" data-aos="fade-up">Premium courses designed for campus placement success.</p>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row g-4">
+        {% for course in courses %}
+        <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="{{ forloop.counter0|add:100 }}">
+            <div class="card h-100 border-0 shadow-sm hover-lift overflow-hidden">
+                
+                <div class="bg-dark text-white d-flex align-items-center justify-content-center" style="height: 180px;">
+                    {% if course.image %}
+                        <img src="{{ course.image.url }}" alt="{{ course.name }}" class="img-fluid w-100 h-100 object-fit-cover">
+                    {% else %}
+                        <div class="text-center">
+                            <i class="bi bi-code-square fs-1 text-white-50"></i>
+                            <h5 class="mt-2">{{ course.name }}</h5>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="mb-2">
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">{{ course.program.name }}</span>
+                        {% if course.is_popular %}
+                            <span class="badge bg-warning text-dark ms-1"><i class="bi bi-star-fill"></i> Bestseller</span>
+                        {% endif %}
+                    </div>
+
+                    <h5 class="fw-bold mb-2">{{ course.name }}</h5>
+                    <p class="text-muted small flex-grow-1">
+                        {{ course.description|default:"Master the core concepts and crack your interviews with this comprehensive module."|truncatewords:20 }}
+                    </p>
+
+                    <hr class="opacity-10 my-3">
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            {% if course.discount_price %}
+                                <span class="text-muted text-decoration-line-through small me-1">₹{{ course.price }}</span>
+                                <span class="h5 fw-bold text-success mb-0">₹{{ course.discount_price }}</span>
+                            {% else %}
+                                <span class="h5 fw-bold text-dark mb-0">₹{{ course.price }}</span>
+                            {% endif %}
+                        </div>
+                       <a href="{% url 'course_landing' course.slug %}" class="btn btn-outline-primary fw-bold">Enroll Now</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <h4 class="text-muted">No courses available at the moment.</h4>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; }
+    .object-fit-cover { object-fit: cover; }
+</style>
+{% endblock %}

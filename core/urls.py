@@ -13,4 +13,7 @@ urlpatterns = [
     path('arena/', views.arena, name='arena'),
     path('run_code/', views.run_code, name='run_code'),
     path('quiz/<slug:slug>/', views.quiz_view, name='quiz'),
+    path('courses/', views.courses, name='courses'),
+    path('course-overview/<slug:slug>/', views.course_landing, name='course_landing'),
+    path('enroll/<slug:slug>/', views.enroll_course, name='enroll_course'),
 ]

@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ course.name }} - CodeApt{% endblock %}
+
+{% block content %}
+<div class="bg-dark text-white py-5" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+    <div class="container py-4">
+        <div class="row">
+            <div class="col-lg-8">
+                <span class="badge bg-warning text-dark mb-2 fw-bold">Bestseller</span>
+                <h1 class="display-4 fw-bold mb-3">{{ course.name }}</h1>
+                <p class="lead text-light opacity-75 mb-4">
+                    {{ course.description|default:"Master this skill from scratch. Designed for placement success with hands-on practice and real-world projects." }}
+                </p>
+                
+                <div class="d-flex align-items-center text-white-50 small">
+                    <span class="me-3"><i class="bi bi-patch-check-fill text-warning me-1"></i> Certified Course</span>
+                    <span class="me-3"><i class="bi bi-globe me-1"></i> English</span>
+                    <span><i class="bi bi-calendar3 me-1"></i> Updated Recently</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8">
+            
+            <div class="card mb-5 border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h4 class="fw-bold mb-4">What you'll learn</h4>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-2 d-flex"><i class="bi bi-check-lg text-success me-2 mt-1"></i> Master core concepts</li>
+                                <li class="mb-2 d-flex"><i class="bi bi-check-lg text-success me-2 mt-1"></i> Solve real interview problems</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-2 d-flex"><i class="bi bi-check-lg text-success me-2 mt-1"></i> Build a final project</li>
+                                <li class="mb-2 d-flex"><i class="bi bi-check-lg text-success me-2 mt-1"></i> Earn a completion certificate</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h4 class="fw-bold mb-4">Course Content</h4>
+            <div class="accordion mb-5" id="syllabusAccordion">
+                {% for topic in topics %}
+                <div class="accordion-item border-0 mb-2 shadow-sm rounded overflow-hidden">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-medium" type="button" data-bs-toggle="collapse" data-bs-target="#topic{{ topic.id }}">
+                            <span class="me-3 text-muted">#{{ topic.order }}</span> {{ topic.name }}
+                        </button>
+                    </h2>
+                    <div id="topic{{ topic.id }}" class="accordion-collapse collapse" data-bs-parent="#syllabusAccordion">
+                        <div class="accordion-body text-muted small bg-light">
+                            In this module, we will cover the fundamentals of {{ topic.name }} including key concepts and practical examples.
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="alert alert-info">Curriculum is being updated. Check back soon!</div>
+                {% endfor %}
+            </div>
+
+            <h4 class="fw-bold mb-4">Your Instructor</h4>
+            <div class="card border-0 shadow-sm p-4">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px; font-size: 1.5rem;">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0">CodeApt Expert Team</h5>
+                        <small class="text-muted">Senior Developers & Industry Trainers</small>
+                    </div>
+                </div>
+                <p class="mt-3 text-muted small mb-0">
+                    Our instructors have years of experience in top product-based companies and have trained over 5,000 students for placements.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-lg sticky-top" style="top: 100px;">
+                <div class="bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                    {% if course.image %}
+                        <img src="{{ course.image.url }}" class="img-fluid w-100 h-100 object-fit-cover">
+                    {% else %}
+                        <i class="bi bi-code-square display-1 text-secondary opacity-25"></i>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        {% if course.discount_price %}
+                            <h2 class="fw-bold mb-0 me-2">₹{{ course.discount_price }}</h2>
+                            <span class="text-muted text-decoration-line-through">₹{{ course.price }}</span>
+                            <span class="badge bg-danger-subtle text-danger ms-auto">OFFER</span>
+                        {% else %}
+                            <h2 class="fw-bold mb-0">₹{{ course.price }}</h2>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'enroll_course' course.slug %}" class="btn btn-primary btn-lg fw-bold shadow-sm">Enroll Now</a>
+                        <button class="btn btn-outline-secondary btn-lg">Download Syllabus</button>
+                    </div>
+
+                    <div class="mt-4">
+                        <h6 class="fw-bold small">This course includes:</h6>
+                        <ul class="list-unstyled small text-muted">
+                            <li class="mb-2"><i class="bi bi-camera-video me-2"></i> {{ topics.count|default:"20" }}+ Lessons</li>
+                            <li class="mb-2"><i class="bi bi-phone me-2"></i> Access on Mobile</li>
+                            <li class="mb-2"><i class="bi bi-code-slash me-2"></i> Coding Assignments</li>
+                            <li class="mb-0"><i class="bi bi-award me-2"></i> Certificate of Completion</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
