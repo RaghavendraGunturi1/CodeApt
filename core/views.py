@@ -290,7 +290,7 @@ def placements(request):
             },
             {
                 'company': 'Cognizant (CTS)',
-                'count': '85*',
+                'count': '85',
                 'subtext': 'Selections from a Single College',
                 'college': 'ACE Engineering College (ACEEC)'  # <--- NEW RECORD
             },
