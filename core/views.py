@@ -261,7 +261,7 @@ def placements(request):
             "KIET, Kakinada", "Vemu IT, Pakala",
             "Swaranandra Engg. College", "AITS, Tirupati",
             "PBR VITS, Kavali", "NEC, Narasaraopet",  # Added
-            "MEC, Guntur"  # Added
+            "MEC, Guntur",  # Added
             "AVNIET, Hyderabad",               # <--- NEW ADDITION
             "KGRCET, Hyderabad",               # <--- NEW ADDITION
             "KPRIT, Hyderabad",                # <--- NEW ADDITION
