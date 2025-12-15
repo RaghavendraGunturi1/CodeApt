@@ -32,8 +32,22 @@ class Subject(models.Model):
 class Topic(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='topics')
     name = models.CharField(max_length=200) # e.g., "Lists & Tuples"
-    content = models.TextField(help_text="Main content for this topic")
     order = models.PositiveIntegerField(default=0)
+    TOPIC_TYPES = (
+        ('text', 'Text Article'),
+        ('video', 'Video Lesson'),
+        ('quiz', 'Quiz'),
+    )
+    topic_type = models.CharField(max_length=10, choices=TOPIC_TYPES, default='text')
+    
+    # Content for Text Lessons
+    content = models.TextField(blank=True, help_text="Main content for text lessons")
+    
+    # Video ID for Video Lessons (e.g., "dQw4w9WgXcQ" from youtube.com/watch?v=dQw4w9WgXcQ)
+    video_id = models.CharField(max_length=20, blank=True, help_text="YouTube Video ID (e.g., dQw4w9WgXcQ)")
+    
+    # Duration (e.g., "10 mins")
+    duration = models.CharField(max_length=50, blank=True, help_text="Estimated time to complete")
 
     class Meta:
         ordering = ['order']
@@ -71,3 +85,41 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.subject.name}"
+
+
+# Add this at the bottom of curriculum/models.py
+
+class TopicProgress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='topic_progress')
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='progress')
+    is_completed = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'topic')  # Ensures one record per user per topic
+
+    def __str__(self):
+        status = "Done" if self.is_completed else "Pending"
+        return f"{self.user.username} - {self.topic.name} ({status})"
+
+
+# Add at the bottom of curriculum/models.py
+
+class QuizSubmission(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quiz_submissions')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='quiz_submissions')
+    score = models.IntegerField()
+    total_questions = models.IntegerField()
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-submitted_at'] # Newest first
+
+    def __str__(self):
+        return f"{self.user.username} - {self.subject.name}: {self.score}/{self.total_questions}"
+        
+    @property
+    def percentage(self):
+        if self.total_questions == 0:
+            return 0
+        return int((self.score / self.total_questions) * 100)

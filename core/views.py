@@ -29,15 +29,66 @@ def about(request):
 
 from curriculum.models import Subject  # Import your new model
 
+from django.db.models import Count, Q
+from curriculum.models import Enrollment, TopicProgress, QuizSubmission
+
 @login_required(login_url='login')
 def dashboard(request):
-    # Fetch ONLY the courses the user has enrolled in
+    # Fetch enrolled courses
     user_enrollments = Enrollment.objects.filter(user=request.user).select_related('subject')
-    my_courses = [enrollment.subject for enrollment in user_enrollments]
     
+    course_data = []
+    total_lessons_completed = 0
+    
+    for enrollment in user_enrollments:
+        subject = enrollment.subject
+        
+        # 1. Total Topics in this course
+        total_topics = subject.topics.count()
+        
+        # 2. Completed Topics by this user in this course
+        completed_topics = TopicProgress.objects.filter(
+            user=request.user, 
+            topic__subject=subject, 
+            is_completed=True
+        ).count()
+        
+        # 3. Calculate Percentage
+        if total_topics > 0:
+            progress_percent = int((completed_topics / total_topics) * 100)
+        else:
+            progress_percent = 0
+            
+        total_lessons_completed += completed_topics
+        
+        # Append data to list
+        course_data.append({
+            'subject': subject,
+            'progress': progress_percent,
+            'completed': completed_topics,
+            'total': total_topics
+        })
+        # --- NEW: CALCULATE QUIZ STATS ---
+    user_submissions = QuizSubmission.objects.filter(user=request.user)
+    
+    # 1. Total Tests Attempted
+    total_tests_attempted = user_submissions.count()
+    
+    # 2. Average Score across all tests
+    # We calculate the average percentage manually to be safe
+    avg_score = 0
+    if total_tests_attempted > 0:
+        total_percentage = sum([sub.percentage for sub in user_submissions])
+        avg_score = int(total_percentage / total_tests_attempted)
+    # ---------------------------------
+
     context = {
         'user': request.user,
-        'subjects': my_courses  # Now this only contains enrolled courses
+        'course_data': course_data,
+        'total_lessons_completed': total_lessons_completed,
+        'total_courses': user_enrollments.count(),
+        'total_tests_attempted': total_tests_attempted,
+        'avg_score': avg_score
     }
     return render(request, 'core/dashboard.html', context)
 
@@ -57,16 +108,22 @@ def course_detail(request, slug):
 
 from curriculum.models import Topic
 
+# In core/views.py
+
 @login_required(login_url='login')
 def topic_detail(request, topic_id):
     topic = get_object_or_404(Topic, id=topic_id)
     subject = topic.subject
     
-    # Optional: Logic to find next/prev topics could go here later
+    # Check if this topic is already completed by the user
+    is_completed = False
+    if request.user.is_authenticated:
+        is_completed = TopicProgress.objects.filter(user=request.user, topic=topic, is_completed=True).exists()
     
     context = {
         'topic': topic,
-        'subject': subject
+        'subject': subject,
+        'is_completed': is_completed, # Pass this to the template
     }
     return render(request, 'core/topic_detail.html', context)
 
@@ -131,12 +188,9 @@ def run_code(request):
 
 
 from curriculum.models import Question # Import the model
-
 @login_required(login_url='login')
 def quiz_view(request, slug):
     subject = get_object_or_404(Subject, slug=slug)
-    
-    # Get all questions for this subject (Limit to 10 for a test)
     questions = Question.objects.filter(subject=subject)
     
     if request.method == 'POST':
@@ -144,22 +198,26 @@ def quiz_view(request, slug):
         total = questions.count()
         
         for q in questions:
-            # Get the selected option ID from the form
             selected_option_id = request.POST.get(str(q.id))
             if selected_option_id:
-                # Check if the selected choice is the correct one
                 choice = q.choices.filter(id=selected_option_id, is_correct=True)
                 if choice.exists():
                     score += 1
         
-        # Calculate Percentage
-        percentage = int((score / total) * 100) if total > 0 else 0
+        # --- NEW: SAVE TO DATABASE ---
+        submission = QuizSubmission.objects.create(
+            user=request.user,
+            subject=subject,
+            score=score,
+            total_questions=total
+        )
+        # -----------------------------
         
         return render(request, 'core/quiz_result.html', {
             'subject': subject,
             'score': score,
             'total': total,
-            'percentage': percentage
+            'percentage': submission.percentage # Use the model property
         })
 
     context = {
@@ -357,3 +415,52 @@ def enroll_course(request, slug):
         messages.info(request, f"You are already enrolled in {subject.name}.")
     
     return redirect('dashboard')
+
+
+from django.http import JsonResponse
+from curriculum.models import TopicProgress, Topic # Ensure TopicProgress is imported
+
+@login_required(login_url='login')
+def toggle_topic_completion(request, topic_id):
+    if request.method == "POST":
+        topic = get_object_or_404(Topic, id=topic_id)
+        
+        # Get or Create the progress record
+        progress, created = TopicProgress.objects.get_or_create(user=request.user, topic=topic)
+        
+        # Toggle status
+        progress.is_completed = not progress.is_completed
+        progress.save()
+        
+        return JsonResponse({
+            'status': 'success', 
+            'is_completed': progress.is_completed
+        })
+    
+    return JsonResponse({'status': 'error'}, status=400)
+
+
+from django.contrib import messages
+from .forms import UserUpdateForm, ProfileUpdateForm # Import the forms
+
+@login_required(login_url='login')
+def profile(request):
+    if request.method == 'POST':
+        u_form = UserUpdateForm(request.POST, instance=request.user)
+        p_form = ProfileUpdateForm(request.POST, instance=request.user.profile)
+
+        if u_form.is_valid() and p_form.is_valid():
+            u_form.save()
+            p_form.save()
+            messages.success(request, 'Your profile has been updated!')
+            return redirect('profile') # Redirect back to profile page
+
+    else:
+        u_form = UserUpdateForm(instance=request.user)
+        p_form = ProfileUpdateForm(instance=request.user.profile)
+
+    context = {
+        'u_form': u_form,
+        'p_form': p_form
+    }
+    return render(request, 'core/profile.html', context)

@@ -12,8 +12,8 @@ class SubjectAdmin(admin.ModelAdmin):
 
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
-    list_display = ('name', 'subject', 'order')
-    list_filter = ('subject',)
+    list_display = ('name', 'subject', 'topic_type', 'order')
+    list_filter = ('subject','topic_type')
 
 from django.contrib import admin
 from .models import Program, Subject, Topic, Question, Choice
@@ -29,3 +29,11 @@ class QuestionAdmin(admin.ModelAdmin):
     list_display = ('text', 'subject')
     list_filter = ('subject',)
     inlines = [ChoiceInline] # This puts choices inside the Question page
+
+
+from .models import Program, Subject, Topic, Question, Choice, TopicProgress # Add TopicProgress
+
+@admin.register(TopicProgress)
+class TopicProgressAdmin(admin.ModelAdmin):
+    list_display = ('user', 'topic', 'is_completed', 'updated_at')
+    list_filter = ('is_completed', 'user')

@@ -16,4 +16,6 @@ urlpatterns = [
     path('courses/', views.courses, name='courses'),
     path('course-overview/<slug:slug>/', views.course_landing, name='course_landing'),
     path('enroll/<slug:slug>/', views.enroll_course, name='enroll_course'),
+    path('toggle-progress/<int:topic_id>/', views.toggle_topic_completion, name='toggle_progress'),
+    path('profile/', views.profile, name='profile'),
 ]

@@ -19,21 +19,94 @@
                 <div class="content-card p-5">
                     
                     <div class="border-bottom pb-4 mb-4">
-                        <span class="badge bg-info bg-opacity-10 text-info border border-info mb-2">Topic #{{ topic.order }}</span>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-info bg-opacity-10 text-info border border-info">
+                                Topic #{{ topic.order }}
+                            </span>
+                            {% if topic.duration %}
+                            <span class="text-muted small"><i class="bi bi-clock me-1"></i> {{ topic.duration }}</span>
+                            {% endif %}
+                        </div>
                         <h1 class="fw-bold brand-black">{{ topic.name }}</h1>
                     </div>
 
-                    <div class="topic-content text-muted" style="line-height: 1.8; font-size: 1.1rem;">
-                        {{ topic.content|linebreaks }}
-                    </div>
+                    {% if topic.topic_type == 'video' and topic.video_id %}
+                        
+                        <div class="mb-4 shadow-sm rounded overflow-hidden bg-dark position-relative video-wrapper">
+                            
+                            <div id="player" 
+                                 data-plyr-provider="youtube" 
+                                 data-plyr-embed-id="{{ topic.video_id }}">
+                            </div>
+                        </div>
+                        
+                        {% if topic.content %}
+                            <div class="mt-4 p-4 bg-light rounded border">
+                                <h5 class="fw-bold text-dark mb-3"><i class="bi bi-file-text me-2"></i>Lecture Notes</h5>
+                                <div class="text-muted small" style="line-height: 1.7;">
+                                    {{ topic.content|linebreaks }}
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <script>
+                            document.addEventListener('DOMContentLoaded', () => {
+                                const player = new Plyr('#player', {
+                                    controls: [
+                                        'play-large', 'play', 'progress', 'current-time', 
+                                        'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'
+                                    ],
+                                    youtube: { 
+                                        noCookie: true, 
+                                        rel: 0, 
+                                        showinfo: 0, 
+                                        iv_load_policy: 3, 
+                                        modestbranding: 1,
+                                        controls: 0
+                                    }
+                                });
+                            });
+                        </script>
+
+                        <style>
+                            /* 1. Disable all mouse interaction with the YouTube iframe */
+                            .plyr__video-embed iframe {
+                                pointer-events: none;
+                            }
+                            
+                            /* 2. Ensure Plyr controls stay clickable */
+                            .plyr__controls {
+                                pointer-events: auto;
+                            }
+
+                            /* 3. Fix Fullscreen Z-Index issues */
+                            .plyr--fullscreen-active .video-shield {
+                                display: block;
+                                z-index: 2147483647; /* Maximum z-index possible */
+                            }
+                        </style>
+
+                    {% else %}
+                        
+                        <div class="topic-content text-muted" style="line-height: 1.8; font-size: 1.1rem;">
+                            {{ topic.content|linebreaks }}
+                        </div>
+
+                    {% endif %}
 
                     <div class="mt-5 pt-4 border-top d-flex justify-content-between">
                         <a href="{% url 'course_detail' subject.slug %}" class="btn btn-outline-secondary px-4">
                             <i class="bi bi-arrow-left me-2"></i> Back to Course
                         </a>
                         
-                        <button class="btn btn-success px-4 text-white">
-                            Mark as Complete <i class="bi bi-check-lg ms-2"></i>
+                        <button id="mark-complete-btn" 
+                                class="btn {% if is_completed %}btn-success{% else %}btn-outline-success{% endif %} px-4" 
+                                onclick="toggleCompletion()">
+                            {% if is_completed %}
+                                Completed <i class="bi bi-check-circle-fill ms-2"></i>
+                            {% else %}
+                                Mark as Complete <i class="bi bi-check-circle ms-2"></i>
+                            {% endif %}
                         </button>
                     </div>
 
@@ -42,4 +115,44 @@
         </div>
     </div>
 </div>
+
+<script>
+    function toggleCompletion() {
+        const btn = document.getElementById('mark-complete-btn');
+        const url = "{% url 'toggle_progress' topic.id %}";
+        
+        // Visual Feedback (Loading)
+        btn.innerHTML = 'Saving... <span class="spinner-border spinner-border-sm ms-2"></span>';
+        btn.disabled = true;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                if (data.is_completed) {
+                    // Turn Green
+                    btn.classList.remove('btn-outline-success');
+                    btn.classList.add('btn-success');
+                    btn.innerHTML = 'Completed <i class="bi bi-check-circle-fill ms-2"></i>';
+                } else {
+                    // Turn Outline
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-success');
+                    btn.innerHTML = 'Mark as Complete <i class="bi bi-check-circle ms-2"></i>';
+                }
+            }
+            btn.disabled = false;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.innerHTML = 'Error!';
+        });
+    }
+</script>
 {% endblock %}

@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile Settings - CodeApt{% endblock %}
+
+{% block content %}
+<div class="bg-light min-vh-100 py-5">
+    <div class="container">
+        
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Profile Settings</li>
+            </ol>
+        </nav>
+
+        <div class="row g-4">
+            
+            <div class="col-md-4">
+                <div class="content-card p-4 text-center">
+                    <div class="mb-3">
+                        <img src="{{ user.profile.avatar_url }}" 
+                             alt="Profile Avatar" 
+                             class="rounded-circle shadow-sm border border-3 border-white"
+                             style="width: 120px; height: 120px;">
+                    </div>
+                    <h4 class="fw-bold mb-1">{{ user.username }}</h4>
+                    <p class="text-muted small mb-3">{{ user.email }}</p>
+                    
+                    <div class="d-grid gap-2">
+                        <div class="p-2 bg-light rounded border">
+                            <small class="text-muted d-block">Member Since</small>
+                            <span class="fw-bold text-dark">{{ user.date_joined|date:"F Y" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="content-card p-5">
+                    <h3 class="fw-bold mb-4">Edit Profile</h3>
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        {% if u_form.errors or p_form.errors %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <strong><i class="bi bi-exclamation-triangle-fill me-2"></i>Please correct the errors below:</strong>
+                                <ul class="mb-0 mt-2">
+                                    {% for field in u_form %}
+                                        {% for error in field.errors %}
+                                            <li>{{ field.label }}: {{ error }}</li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                    {% for field in p_form %}
+                                        {% for error in field.errors %}
+                                            <li>{{ field.label }}: {{ error }}</li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </ul>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endif %}
+                        <h5 class="text-primary mb-3"><i class="bi bi-person me-2"></i>Personal Details</h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Username (Read Only)</label>
+                                <input type="text" class="form-control bg-light" value="{{ user.username }}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Email Address <span class="text-danger">*</span></label>
+                                {{ u_form.email }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Full Name (Official)</label>
+                                {{ p_form.full_name }}
+                                <div class="form-text text-muted">This name will appear on your Certificates.</div>
+                            </div>
+                        </div>
+
+                        <h5 class="text-primary mb-3 border-top pt-4"><i class="bi bi-building me-2"></i>Academic Info</h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">College / University</label>
+                                {{ p_form.college_name }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Phone Number</label>
+                                {{ p_form.phone_number }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Bio</label>
+                                {{ p_form.bio }}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary px-4 fw-bold">Save Changes</button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
