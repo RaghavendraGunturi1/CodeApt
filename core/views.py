@@ -3,7 +3,14 @@ from django.contrib import messages # For success messages
 from .forms import ContactForm
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404
-
+import base64
+import hashlib
+import json
+import requests
+import uuid
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from curriculum.models import Order # We just created this
 
 def index(request):
     return render(request, 'core/index.html')
@@ -308,23 +315,28 @@ def training(request):
 
 def placements(request):
     """
-    Corrected Placement Stats and Expanded Partner List.
+    Corrected Placement Stats and Expanded Partner List (Sorted Alphabetically).
     """
+    # Define the list first
+    partners_list = [
+        "IARE, Hyderabad", "SR University, Warangal", "MRECW, Hyderabad",
+        "ACEEC, Ghatkesar", "Pragati Engineering College, Kakinada",
+        "Sreedevi Women's Engg. College", "SRIT, Anantapur",
+        "KITS, Guntur", "KITS, Warangal", "KITS, Huzurabad",
+        "KIET, Kakinada", "Vemu IT, Pakala",
+        "Swaranandra Engg. College", "AITS, Tirupati",
+        "PBR VITS, Kavali", "NEC, Narasaraopet",
+        "MEC, Guntur",
+        "AVNIET, Hyderabad",
+        "KGRCET, Hyderabad",
+        "KPRIT, Hyderabad",
+        "Sreerama Engg. College, Tirupati"
+    ]
+
     context = {
-        'partners': [
-            "IARE, Hyderabad", "SR University, Warangal", "MRECW, Hyderabad",
-            "ACEEC, Ghatkesar", "Pragati Engineering College, Kakinada",
-            "Sreedevi Women's Engg. College", "SRIT, Anantapur",
-            "KITS, Guntur", "KITS, Warangal", "KITS, Huzurabad",  # Added
-            "KIET, Kakinada", "Vemu IT, Pakala",
-            "Swaranandra Engg. College", "AITS, Tirupati",
-            "PBR VITS, Kavali", "NEC, Narasaraopet",  # Added
-            "MEC, Guntur",  # Added
-            "AVNIET, Hyderabad",               # <--- NEW ADDITION
-            "KGRCET, Hyderabad",               # <--- NEW ADDITION
-            "KPRIT, Hyderabad",                # <--- NEW ADDITION
-            "Sreerama Engg. College, Tirupati" # <--- NEW ADDITION
-        ],
+        # This one line sorts them A-Z automatically
+        'partners': sorted(partners_list),
+        
         'success_stories': [
             {
                 'company': 'Infosys',
@@ -336,7 +348,7 @@ def placements(request):
                 'company': 'Infosys',
                 'count': '92',
                 'subtext': 'Selections from a Single Group',
-                'college': 'KITS Group, Guntur'  # <--- NEW RECORD ADDED HERE
+                'college': 'KITS Group, Guntur'
             },
             {
                 'company': 'Accenture',
@@ -354,7 +366,7 @@ def placements(request):
                 'company': 'Cognizant (CTS)',
                 'count': '85',
                 'subtext': 'Selections from a Single College',
-                'college': 'ACE Engineering College (ACEEC)'  # <--- NEW RECORD
+                'college': 'ACE Engineering College (ACEEC)'
             },
             {
                 'company': 'HCL',
@@ -385,12 +397,17 @@ def course_landing(request, slug):
     Public Course Landing Page (Sales Page).
     """
     course = get_object_or_404(Subject, slug=slug)
-    # Fetch syllabus preview
     topics = course.topics.all().order_by('order')
+    
+    # CHECK IF ENROLLED (Crucial for the Button Logic)
+    is_enrolled = False
+    if request.user.is_authenticated:
+        is_enrolled = Enrollment.objects.filter(user=request.user, subject=course).exists()
     
     context = {
         'course': course,
-        'topics': topics
+        'topics': topics,
+        'is_enrolled': is_enrolled # This passes True/False to the template
     }
     return render(request, 'core/course_landing.html', context)
 
@@ -464,3 +481,151 @@ def profile(request):
         'p_form': p_form
     }
     return render(request, 'core/profile.html', context)
+
+
+# In core/views.py
+
+@login_required(login_url='login')
+def initiate_payment(request, subject_slug):
+    subject = get_object_or_404(Subject, slug=subject_slug)
+    
+    # 1. Generate Unique Order ID
+    order_id = f"ORDER_{uuid.uuid4().hex[:10].upper()}"
+    
+    # 2. Save Order
+    Order.objects.create(
+        user=request.user,
+        subject=subject,
+        order_id=order_id,
+        amount=subject.price
+    )
+    
+    # 3. Data for PhonePe
+    # IMPORTANT: Ensure amount is an Integer (Paise), not Decimal
+    amount_in_paise = int(float(subject.price) * 100)
+    
+    payload = {
+        "merchantId": settings.PHONEPE_MERCHANT_ID,
+        "merchantTransactionId": order_id,
+        "merchantUserId": str(request.user.id),
+        "amount": amount_in_paise,
+        "redirectUrl": "http://127.0.0.1:8000/payment/callback/",
+        "redirectMode": "POST",
+        "callbackUrl": "http://127.0.0.1:8000/payment/callback/",
+        "paymentInstrument": {
+            "type": "PAY_PAGE"
+        }
+    }
+    
+    # 4. Create Checksum
+    payload_json = json.dumps(payload)
+    payload_b64 = base64.b64encode(payload_json.encode('utf-8')).decode('utf-8')
+    checksum_string = payload_b64 + "/pg/v1/pay" + settings.PHONEPE_SALT_KEY
+    checksum = hashlib.sha256(checksum_string.encode('utf-8')).hexdigest()
+    final_x_verify = f"{checksum}###{settings.PHONEPE_SALT_INDEX}"
+    
+    # 5. Send Request
+    headers = {
+        "Content-Type": "application/json",
+        "X-VERIFY": final_x_verify,
+    }
+    
+    try:
+        response = requests.post(settings.PHONEPE_BASE_URL, json={"request": payload_b64}, headers=headers)
+        data = response.json()
+        
+        # --- DEBUGGING PRINTS (Check your terminal after clicking Buy) ---
+        print("\n\n=== PHONEPE DEBUG LOG ===")
+        print(f"Sent Payload: {payload}")
+        print(f"Response Status: {response.status_code}")
+        print(f"Response Data: {data}")
+        print("=========================\n\n")
+        # ----------------------------------------------------------------
+        
+        if data.get("success"):
+            return redirect(data['data']['instrumentResponse']['redirectInfo']['url'])
+        else:
+            # Show the specific error from PhonePe on the screen
+            error_msg = data.get('message', 'Payment Gateway Error')
+            messages.error(request, f"PhonePe Error: {error_msg}")
+            return redirect('course_landing', slug=subject.slug)
+            
+    except Exception as e:
+        print(f"Internal Error: {e}")
+        messages.error(request, f"Internal Error: {str(e)}")
+        return redirect('course_landing', slug=subject.slug)
+
+# In core/views.py
+
+@csrf_exempt
+def payment_callback(request):
+    if request.method == "POST":
+        try:
+            data = request.POST
+            # --- DEBUGGING: Keep prints to be safe ---
+            print("\n\n=== CALLBACK DEBUG ===")
+            print(f"Callback Data Keys: {data.keys()}")
+            print(f"Callback Data: {data}") # Printing full data to verify values
+            
+            # 1. Try to get Order ID (Handle different field names)
+            merchant_txn_id = data.get('merchantTransactionId')
+            if not merchant_txn_id:
+                # FALLBACK: In Redirect Mode, 'transactionId' often holds the Order ID
+                merchant_txn_id = data.get('transactionId')
+            
+            # 2. Get PhonePe ID (Handle different field names)
+            transaction_id = data.get('transactionId')
+            if merchant_txn_id == transaction_id and data.get('providerReferenceId'):
+                # If transactionId was used for Order ID, use providerReferenceId for PhonePe ID
+                transaction_id = data.get('providerReferenceId')
+
+            payment_status = data.get('code') 
+
+            # 3. Handle Base64 Response (Modern Flow) - Keep this just in case
+            if data.get('response'):
+                try:
+                    encoded_response = data.get('response')
+                    decoded_response = base64.b64decode(encoded_response).decode('utf-8')
+                    json_data = json.loads(decoded_response)
+                    
+                    if json_data.get('success'):
+                        merchant_txn_id = json_data['data']['merchantTransactionId']
+                        transaction_id = json_data['data']['transactionId']
+                        payment_status = json_data.get('code')
+                except Exception as e:
+                    print(f"Decoding Error: {e}")
+
+            # 4. Verify and Enroll
+            if merchant_txn_id:
+                try:
+                    order = Order.objects.get(order_id=merchant_txn_id)
+                    
+                    if payment_status == 'PAYMENT_SUCCESS':
+                        order.status = 'SUCCESS'
+                        order.transaction_id = transaction_id
+                        order.save()
+                        
+                        # Enroll the User
+                        Enrollment.objects.get_or_create(user=order.user, subject=order.subject)
+                        
+                        messages.success(request, f"Payment Successful! You are enrolled in {order.subject.name}.")
+                        return redirect('dashboard')
+                    else:
+                        order.status = 'FAILED'
+                        order.save()
+                        print(f"Payment Status was: {payment_status}")
+                        messages.error(request, "Payment Failed.")
+                        return redirect('course_landing', slug=order.subject.slug)
+                        
+                except Order.DoesNotExist:
+                    print(f"Order Not Found: {merchant_txn_id}")
+                    messages.error(request, "Invalid Order ID.")
+            else:
+                messages.error(request, "Invalid Payment Response (No ID found)")
+
+        except Exception as e:
+            print(f"Callback System Error: {e}")
+            messages.error(request, "Error processing payment result.")
+            
+    return redirect('dashboard')
+

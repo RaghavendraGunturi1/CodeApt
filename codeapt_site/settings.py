@@ -132,3 +132,10 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# PhonePe Configuration (TEST SANDBOX)
+# PhonePe Configuration (UPDATED TEST CREDENTIALS)
+PHONEPE_MERCHANT_ID = "PGTESTPAYUAT86"  # Changed from PGTESTPAYUAT
+PHONEPE_SALT_KEY = "96434309-7796-489d-8924-ab56988a6076" # Changed Key
+PHONEPE_SALT_INDEX = 1
+PHONEPE_BASE_URL = "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay"

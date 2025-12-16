@@ -62,6 +62,7 @@
                         </div>
                     </div>
                 </div>
+                
                 {% empty %}
                 <div class="alert alert-info">Curriculum is being updated. Check back soon!</div>
                 {% endfor %}
@@ -107,8 +108,23 @@
                     </div>
 
                     <div class="d-grid gap-2">
-                        <a href="{% url 'enroll_course' course.slug %}" class="btn btn-primary btn-lg fw-bold shadow-sm">Enroll Now</a>
-                        <button class="btn btn-outline-secondary btn-lg">Download Syllabus</button>
+                        {% if is_enrolled %}
+                            <button class="btn btn-success btn-lg disabled shadow-none">
+                                <i class="bi bi-check-circle-fill me-2"></i> Already Enrolled
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">Go to Dashboard</a>
+                        {% else %}
+                            <a href="{% url 'initiate_payment' course.slug %}" class="btn btn-primary btn-lg fw-bold shadow-sm">
+                                Buy Now <i class="bi bi-lightning-charge-fill ms-2"></i>
+                            </a>
+                            <small class="text-muted d-block text-center mt-2" style="font-size: 0.8rem;">
+                                <i class="bi bi-shield-lock-fill me-1"></i> Secured by PhonePe
+                            </small>
+                        {% endif %}
+                        
+                        {% if not is_enrolled %}
+                        <button class="btn btn-outline-secondary btn-lg mt-2">Download Syllabus</button>
+                        {% endif %}
                     </div>
 
                     <div class="mt-4">

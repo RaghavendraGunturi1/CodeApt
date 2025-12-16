@@ -18,4 +18,6 @@ urlpatterns = [
     path('enroll/<slug:slug>/', views.enroll_course, name='enroll_course'),
     path('toggle-progress/<int:topic_id>/', views.toggle_topic_completion, name='toggle_progress'),
     path('profile/', views.profile, name='profile'),
+    path('buy/<slug:subject_slug>/', views.initiate_payment, name='initiate_payment'),
+    path('payment/callback/', views.payment_callback, name='payment_callback'),
 ]
