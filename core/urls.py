@@ -20,4 +20,7 @@ urlpatterns = [
     path('profile/', views.profile, name='profile'),
     path('buy/<slug:subject_slug>/', views.initiate_payment, name='initiate_payment'),
     path('payment/callback/', views.payment_callback, name='payment_callback'),
+    path('terms/', views.terms, name='terms'),
+    path('privacy/', views.privacy, name='privacy'),
+    path('refund-policy/', views.refund_policy, name='refund_policy'),
 ]

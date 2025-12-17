@@ -34,6 +34,15 @@ def contact(request):
 def about(request):
     return render(request, 'core/about.html')
 
+def terms(request):
+    return render(request, 'core/terms.html')
+
+def privacy(request):
+    return render(request, 'core/privacy.html')
+
+def refund_policy(request):
+    return render(request, 'core/refund_policy.html')
+
 from curriculum.models import Subject  # Import your new model
 
 from django.db.models import Count, Q
