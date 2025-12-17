@@ -31,6 +31,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Add these two:
+    'cloudinary_storage',
+    'cloudinary',
 ]
 
 MIDDLEWARE = [
@@ -139,3 +142,23 @@ PHONEPE_MERCHANT_ID = "PGTESTPAYUAT86"  # Changed from PGTESTPAYUAT
 PHONEPE_SALT_KEY = "96434309-7796-489d-8924-ab56988a6076" # Changed Key
 PHONEPE_SALT_INDEX = 1
 PHONEPE_BASE_URL = "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay"
+
+# Cloud name	
+# dsut5kquw
+# API key	
+# 769874292495414
+# API secret	
+# wBf8ervMT-rczNWSGfNzI9r9Umo
+
+# API environment variable	
+CLOUDINARY_URL="cloudinary://769874292495414:wBf8ervMT-rczNWSGfNzI9r9Umo@dsut5kquw"
+
+# Cloudinary Storage
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'dsut5kquw', 
+    'API_KEY': '769874292495414', 
+    'API_SECRET': 'wBf8ervMT-rczNWSGfNzI9r9Umo'
+}
+
+# Tell Django to use Cloudinary for uploaded media
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
