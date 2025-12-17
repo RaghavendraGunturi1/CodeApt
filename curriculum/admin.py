@@ -12,8 +12,9 @@ class SubjectAdmin(admin.ModelAdmin):
 
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
-    list_display = ('name', 'subject', 'topic_type', 'order')
-    list_filter = ('subject','topic_type')
+    list_display = ('name', 'subject', 'module', 'topic_type', 'order') # Added 'module'
+    list_filter = ('subject', 'module', 'topic_type') # Added 'module'
+    search_fields = ('name', 'content')
 
 from django.contrib import admin
 from .models import Program, Subject, Topic, Question, Choice

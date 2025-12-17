@@ -50,34 +50,71 @@
 
             <div class="col-lg-8">
                 <h4 class="fw-bold mb-4">Course Content</h4>
+            <div class="accordion mb-5" id="syllabusAccordion">
                 
-                {% if topics %}
-                    <div class="accordion" id="topicsAccordion">
-                        {% for topic in topics %}
-                        <div class="content-card mb-3 border-0 overflow-hidden">
-                            <div class="accordion-item border-0">
-                                <h2 class="accordion-header" id="heading{{ topic.id }}">
-                                    <button class="accordion-button collapsed fw-bold bg-white shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ topic.id }}">
+                {% for module in modules %}
+                    <div class="mb-4">
+                        <h5 class="text-primary fw-bold border-bottom pb-2 mb-3">
+                            <i class="bi bi-collection-play me-2"></i>{{ module.name }}
+                        </h5>
+                        
+                        {% for topic in module.topics.all %}
+                            <div class="accordion-item border-0 mb-2 shadow-sm rounded overflow-hidden">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed fw-medium" type="button" data-bs-toggle="collapse" data-bs-target="#topic{{ topic.id }}">
                                         <span class="me-3 text-muted">#{{ topic.order }}</span> {{ topic.name }}
                                     </button>
                                 </h2>
-                                <div id="collapse{{ topic.id }}" class="accordion-collapse collapse" data-bs-parent="#topicsAccordion">
-                                    <div class="accordion-body text-muted small bg-light border-top">
-                                        {{ topic.content|truncatewords:30 }}
+                                <div id="topic{{ topic.id }}" class="accordion-collapse collapse" data-bs-parent="#syllabusAccordion">
+                                    <div class="accordion-body text-muted small bg-light">
+                                        {% if topic.content %}
+                                            {{ topic.content|truncatewords:20 }}
+                                        {% else %}
+                                            Start learning {{ topic.name }} now. Click "Read Topic" inside.
+                                        {% endif %}
                                         <div class="mt-2">
-                                            <a href="{% url 'topic_detail' topic.id %}" class="btn btn-sm btn-primary">Read Topic</a>
+                                            {% if is_enrolled %}
+                                                <a href="{% url 'topic_detail' topic.id %}" class="btn btn-sm btn-primary">Start Lesson</a>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Enroll to Access</span>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
                         {% endfor %}
                     </div>
-                {% else %}
-                    <div class="alert alert-warning">
-                        No topics have been added to this course yet.
-                    </div>
+                {% endfor %}
+
+                {% if orphan_topics %}
+                    {% if modules %}<h5 class="text-muted fw-bold border-bottom pb-2 mb-3 mt-4">Other Topics</h5>{% endif %}
+                    {% for topic in orphan_topics %}
+                        <div class="accordion-item border-0 mb-2 shadow-sm rounded overflow-hidden">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed fw-medium" type="button" data-bs-toggle="collapse" data-bs-target="#topic{{ topic.id }}">
+                                    <span class="me-3 text-muted">#{{ topic.order }}</span> {{ topic.name }}
+                                </button>
+                            </h2>
+                            <div id="topic{{ topic.id }}" class="accordion-collapse collapse" data-bs-parent="#syllabusAccordion">
+                                <div class="accordion-body text-muted small bg-light">
+                                    In this module, we will cover the fundamentals of {{ topic.name }}.
+                                    <div class="mt-2">
+                                        {% if is_enrolled %}
+                                            <a href="{% url 'topic_detail' topic.id %}" class="btn btn-sm btn-primary">Start Lesson</a>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Enroll to Access</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
                 {% endif %}
+                
+                {% if not modules and not orphan_topics %}
+                    <div class="alert alert-info">Curriculum is being updated. Check back soon!</div>
+                {% endif %}
+            </div>
             </div>
         </div>
     </div>

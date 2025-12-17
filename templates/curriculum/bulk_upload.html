@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Bulk Upload Topics: {{ subject.name }}</h4>
+                </div>
+                <div class="card-body">
+                    
+                    <div class="alert alert-info small">
+                        <strong>Excel Format Required:</strong><br>
+                        Your Excel file must have these headers (case-sensitive):
+                        <ul>
+                            <li><code>module</code> (e.g., Quantitative Aptitude, Reasoning) - <em>New!</em></li>
+                            <li><code>order</code> (e.g., 1, 2, 3)</li>
+                            <li><code>name</code> (e.g., Introduction to Python)</li>
+                            <li><code>type</code> (text, video, or quiz)</li>
+                            <li><code>content</code> (Text content for articles)</li>
+                            <li><code>video_id</code> (YouTube ID for video lessons)</li>
+                            <li><code>duration</code> (e.g., 10 mins)</li>
+                        </ul>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            {{ form.as_p }}
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Upload Topics</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

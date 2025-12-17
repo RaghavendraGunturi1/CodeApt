@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from curriculum import views as curriculum_views
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -23,4 +24,6 @@ urlpatterns = [
     path('terms/', views.terms, name='terms'),
     path('privacy/', views.privacy, name='privacy'),
     path('refund-policy/', views.refund_policy, name='refund_policy'),
+    path('bulk-upload/<slug:slug>/', curriculum_views.bulk_upload_topics, name='bulk_upload_topics'),
+
 ]

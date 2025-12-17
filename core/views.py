@@ -112,13 +112,17 @@ def dashboard(request):
 def course_detail(request, slug):
     # Find the specific subject by its URL slug (e.g., 'python')
     subject = get_object_or_404(Subject, slug=slug)
-    
+    modules = subject.modules.prefetch_related('topics').order_by('order')
+    orphan_topics = subject.topics.filter(module__isnull=True).order_by('order')
     # Get all topics for this subject, ordered by the 'order' field
     topics = subject.topics.all().order_by('order')
     
     context = {
+        'course': subject,
         'subject': subject,
-        'topics': topics
+        'modules': modules,       # Send modules
+        'orphan_topics': orphan_topics, # Send topics with no module
+        'is_enrolled': Enrollment.objects.filter(user=request.user, subject=subject).exists()
     }
     return render(request, 'core/course_detail.html', context)
 

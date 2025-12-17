@@ -1,5 +1,7 @@
 from django.db import models
 from django.utils.text import slugify
+from django.contrib.auth.models import User
+from django.db import models
 
 class Program(models.Model):
     name = models.CharField(max_length=100)  # e.g., "Technical Training"
@@ -29,9 +31,21 @@ class Subject(models.Model):
         return self.name
 
 
+class Module(models.Model):
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='modules')
+    name = models.CharField(max_length=100) 
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.subject.name} - {self.name}"
+
 class Topic(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='topics')
     name = models.CharField(max_length=200) # e.g., "Lists & Tuples"
+    module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='topics', null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
     TOPIC_TYPES = (
         ('text', 'Text Article'),
@@ -39,6 +53,7 @@ class Topic(models.Model):
         ('quiz', 'Quiz'),
     )
     topic_type = models.CharField(max_length=10, choices=TOPIC_TYPES, default='text')
+    
     
     # Content for Text Lessons
     content = models.TextField(blank=True, help_text="Main content for text lessons")
@@ -143,3 +158,4 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order {self.order_id} - {self.user.username}"
+
