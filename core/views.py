@@ -339,7 +339,8 @@ def placements(request):
         "AVNIET, Hyderabad",
         "KGRCET, Hyderabad",
         "KPRIT, Hyderabad",
-        "Sreerama Engg. College, Tirupati"
+        "Sreerama Engg. College, Tirupati",
+        "Pydah College of Engineering, Kakinada"
     ]
 
     context = {
