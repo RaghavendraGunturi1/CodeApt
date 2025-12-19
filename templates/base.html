@@ -38,6 +38,17 @@
                 <li class="nav-item"><a class="nav-link" href="{% url 'training' %}">Training</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'placements' %}">Placements</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'courses' %}">Courses</a></li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Policies
+                    </a>
+                    <ul class="dropdown-menu border-0 shadow mt-2">
+                        <li><a class="dropdown-item" href="{% url 'terms' %}">Terms & Conditions</a></li>
+                        <li><a class="dropdown-item" href="{% url 'privacy' %}">Privacy Policy</a></li>
+                        <li><a class="dropdown-item" href="{% url 'refund_policy' %}">Refund Policy</a></li>
+                        <li><a class="dropdown-item" href="{% url 'shipping_policy' %}">Shipping Policy</a></li>
+                    </ul>
+                </li>
                 
                 {% if user.is_authenticated %}
                     <li class="nav-item dropdown ms-3">
