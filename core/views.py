@@ -97,6 +97,7 @@ def dashboard(request):
         total_percentage = sum([sub.percentage for sub in user_submissions])
         avg_score = int(total_percentage / total_tests_attempted)
     # ---------------------------------
+    pending_orders = Order.objects.filter(user=request.user, status='PENDING').select_related('subject')
 
     context = {
         'user': request.user,
@@ -104,7 +105,8 @@ def dashboard(request):
         'total_lessons_completed': total_lessons_completed,
         'total_courses': user_enrollments.count(),
         'total_tests_attempted': total_tests_attempted,
-        'avg_score': avg_score
+        'avg_score': avg_score,
+        'pending_orders': pending_orders # Add this
     }
     return render(request, 'core/dashboard.html', context)
 
@@ -496,150 +498,225 @@ def profile(request):
     }
     return render(request, 'core/profile.html', context)
 
+import requests
+import uuid
+import json
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from curriculum.models import Subject, Enrollment, Order
 
+# --- HELPER: Generate OAuth Token ---
+def get_phonepe_token():
+    """
+    Generates the O-Bearer Token required for V2 API calls.
+    """
+    url = f"{settings.PHONEPE_BASE_URL}/v1/oauth/token"
+    
+    payload = {
+        "client_id": settings.PHONEPE_CLIENT_ID,
+        "client_secret": settings.PHONEPE_CLIENT_SECRET,
+        "grant_type": "client_credentials",
+        "client_version": settings.PHONEPE_CLIENT_VERSION
+    }
+    
+    try:
+        response = requests.post(url, data=payload)
+        data = response.json()
+        
+        if response.status_code == 200 and "access_token" in data:
+            return data["access_token"]
+        else:
+            print(f"Token Error: {data}")
+            return None
+    except Exception as e:
+        print(f"Token Connection Error: {e}")
+        return None
+
+# --- PAYMENT VIEWS ---
+import uuid
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+
+# Models
+from curriculum.models import Subject, Enrollment, Order
+
+# --- PHONEPE SDK IMPORTS ---
+from core.phonepe import get_phonepe_client
+from phonepe.sdk.pg.payments.v2.models.request.standard_checkout_pay_request import StandardCheckoutPayRequest
+from phonepe.sdk.pg.common.models.request.meta_info import MetaInfo
+
+# --- VIEWS ---
 # In core/views.py
-
 @login_required(login_url='login')
 def initiate_payment(request, subject_slug):
     subject = get_object_or_404(Subject, slug=subject_slug)
     
-    # 1. Generate Unique Order ID
-    order_id = f"ORDER_{uuid.uuid4().hex[:10].upper()}"
+    # 1. Generate Order ID
+    merchant_order_id = str(uuid.uuid4())
     
-    # 2. Save Order
+    # 2. Save Pending Order
     Order.objects.create(
         user=request.user,
         subject=subject,
-        order_id=order_id,
-        amount=subject.price
+        order_id=merchant_order_id,
+        amount=subject.price,
+        status='PENDING'
     )
     
-    # 3. Data for PhonePe
-    # IMPORTANT: Ensure amount is an Integer (Paise), not Decimal
-    amount_in_paise = int(float(subject.price) * 100)
-    
-    payload = {
-        "merchantId": settings.PHONEPE_MERCHANT_ID,
-        "merchantTransactionId": order_id,
-        "merchantUserId": str(request.user.id),
-        "amount": amount_in_paise,
-        "redirectUrl": "http://127.0.0.1:8000/payment/callback/",
-        "redirectMode": "POST",
-        "callbackUrl": "http://127.0.0.1:8000/payment/callback/",
-        "paymentInstrument": {
-            "type": "PAY_PAGE"
-        }
-    }
-    
-    # 4. Create Checksum
-    payload_json = json.dumps(payload)
-    payload_b64 = base64.b64encode(payload_json.encode('utf-8')).decode('utf-8')
-    checksum_string = payload_b64 + "/pg/v1/pay" + settings.PHONEPE_SALT_KEY
-    checksum = hashlib.sha256(checksum_string.encode('utf-8')).hexdigest()
-    final_x_verify = f"{checksum}###{settings.PHONEPE_SALT_INDEX}"
-    
-    # 5. Send Request
-    headers = {
-        "Content-Type": "application/json",
-        "X-VERIFY": final_x_verify,
-    }
-    
     try:
-        response = requests.post(settings.PHONEPE_BASE_URL, json={"request": payload_b64}, headers=headers)
-        data = response.json()
+        client = get_phonepe_client()
+        amount_in_paise = int(float(subject.price) * 100)
         
-        # --- DEBUGGING PRINTS (Check your terminal after clicking Buy) ---
-        print("\n\n=== PHONEPE DEBUG LOG ===")
-        print(f"Sent Payload: {payload}")
-        print(f"Response Status: {response.status_code}")
-        print(f"Response Data: {data}")
-        print("=========================\n\n")
-        # ----------------------------------------------------------------
+        # --- FIX: Embed Order ID in the URL ---
+        # This creates: https://yourdomain.com/payment/callback/ORDER_ID_HERE/
+        callback_path = f'/payment/callback/{merchant_order_id}/'
+        redirect_url = request.build_absolute_uri(callback_path)
         
-        if data.get("success"):
-            return redirect(data['data']['instrumentResponse']['redirectInfo']['url'])
+        meta_info = MetaInfo(udf1="CoursePayment", udf2=str(subject.id))
+        
+        pay_request = StandardCheckoutPayRequest.build_request(
+            merchant_order_id=merchant_order_id,
+            amount=amount_in_paise,
+            redirect_url=redirect_url,
+            meta_info=meta_info,
+            message=f"Payment for {subject.name}"
+        )
+        
+        standard_pay_response = client.pay(pay_request)
+        
+        if standard_pay_response.redirect_url:
+            return redirect(standard_pay_response.redirect_url)
         else:
-            # Show the specific error from PhonePe on the screen
-            error_msg = data.get('message', 'Payment Gateway Error')
-            messages.error(request, f"PhonePe Error: {error_msg}")
+            messages.error(request, "Error: No redirect URL received.")
             return redirect('course_landing', slug=subject.slug)
-            
+
     except Exception as e:
-        print(f"Internal Error: {e}")
-        messages.error(request, f"Internal Error: {str(e)}")
+        print(f"SDK Payment Init Error: {e}")
+        messages.error(request, "Could not initiate payment.")
         return redirect('course_landing', slug=subject.slug)
 
-# In core/views.py
-
 @csrf_exempt
-def payment_callback(request):
-    if request.method == "POST":
-        try:
-            data = request.POST
-            # --- DEBUGGING: Keep prints to be safe ---
-            print("\n\n=== CALLBACK DEBUG ===")
-            print(f"Callback Data Keys: {data.keys()}")
-            print(f"Callback Data: {data}") # Printing full data to verify values
+def payment_callback(request, order_id):
+    """
+    Handles the redirect from PhonePe.
+    Now receives 'order_id' directly from the URL for 100% reliability.
+    """
+    try:
+        print(f"\nCallback received for Order: {order_id}")
+
+        # 1. Get SDK Client
+        client = get_phonepe_client()
+        
+        # 2. Check Status Immediately
+        # We don't wait for POST data. We actively ask PhonePe "What happened?"
+        status_response = client.get_order_status(order_id)
+        
+        print(f"Callback Status Check: {status_response.state}")
+
+        # 3. Update Database
+        order = get_object_or_404(Order, order_id=order_id)
+        
+        # Prevent duplicate enrollment if user refreshes page
+        if order.status == 'SUCCESS':
+            return redirect('dashboard')
+
+        if status_response.state == "COMPLETED":
+            order.status = 'SUCCESS'
             
-            # 1. Try to get Order ID (Handle different field names)
-            merchant_txn_id = data.get('merchantTransactionId')
-            if not merchant_txn_id:
-                # FALLBACK: In Redirect Mode, 'transactionId' often holds the Order ID
-                merchant_txn_id = data.get('transactionId')
+            # Save Transaction ID safely
+            if status_response.payment_details:
+                last_attempt = status_response.payment_details[-1]
+                if hasattr(last_attempt, 'transaction_id'):
+                    order.transaction_id = last_attempt.transaction_id
+                elif hasattr(last_attempt, 'payment_id'):
+                    order.transaction_id = last_attempt.payment_id
             
-            # 2. Get PhonePe ID (Handle different field names)
-            transaction_id = data.get('transactionId')
-            if merchant_txn_id == transaction_id and data.get('providerReferenceId'):
-                # If transactionId was used for Order ID, use providerReferenceId for PhonePe ID
-                transaction_id = data.get('providerReferenceId')
-
-            payment_status = data.get('code') 
-
-            # 3. Handle Base64 Response (Modern Flow) - Keep this just in case
-            if data.get('response'):
-                try:
-                    encoded_response = data.get('response')
-                    decoded_response = base64.b64decode(encoded_response).decode('utf-8')
-                    json_data = json.loads(decoded_response)
-                    
-                    if json_data.get('success'):
-                        merchant_txn_id = json_data['data']['merchantTransactionId']
-                        transaction_id = json_data['data']['transactionId']
-                        payment_status = json_data.get('code')
-                except Exception as e:
-                    print(f"Decoding Error: {e}")
-
-            # 4. Verify and Enroll
-            if merchant_txn_id:
-                try:
-                    order = Order.objects.get(order_id=merchant_txn_id)
-                    
-                    if payment_status == 'PAYMENT_SUCCESS':
-                        order.status = 'SUCCESS'
-                        order.transaction_id = transaction_id
-                        order.save()
-                        
-                        # Enroll the User
-                        Enrollment.objects.get_or_create(user=order.user, subject=order.subject)
-                        
-                        messages.success(request, f"Payment Successful! You are enrolled in {order.subject.name}.")
-                        return redirect('dashboard')
-                    else:
-                        order.status = 'FAILED'
-                        order.save()
-                        print(f"Payment Status was: {payment_status}")
-                        messages.error(request, "Payment Failed.")
-                        return redirect('course_landing', slug=order.subject.slug)
-                        
-                except Order.DoesNotExist:
-                    print(f"Order Not Found: {merchant_txn_id}")
-                    messages.error(request, "Invalid Order ID.")
-            else:
-                messages.error(request, "Invalid Payment Response (No ID found)")
-
-        except Exception as e:
-            print(f"Callback System Error: {e}")
-            messages.error(request, "Error processing payment result.")
+            order.save()
             
+            # Enroll User
+            Enrollment.objects.get_or_create(user=order.user, subject=order.subject)
+            
+            messages.success(request, f"Payment Successful! Enrolled in {order.subject.name}.")
+            return redirect('dashboard')
+        
+        elif status_response.state == "FAILED":
+            order.status = 'FAILED'
+            order.save()
+            messages.error(request, "Payment Failed.")
+            return redirect('course_landing', slug=order.subject.slug)
+        
+        else:
+            # Still Pending?
+            messages.warning(request, "Payment is processing. Check status in dashboard.")
+            return redirect('dashboard')
+
+    except Exception as e:
+        print(f"Callback Error: {e}")
+        messages.error(request, "Verification Error.")
+        return redirect('dashboard')
+
+
+
+# In core/views.py
+@login_required(login_url='login')
+def check_payment_status(request, order_id):
+    """
+    Manually checks the status of a specific order with PhonePe.
+    """
+    try:
+        # 1. Get the Order from DB
+        order = get_object_or_404(Order, order_id=order_id, user=request.user)
+        
+        # If already successful, just redirect
+        if order.status == 'SUCCESS':
+            messages.info(request, "This order is already completed.")
+            return redirect('dashboard')
+
+        # 2. Ask PhonePe for Status
+        client = get_phonepe_client()
+        status_response = client.get_order_status(order.order_id)
+        
+        print(f"Manual Check Status: {status_response.state}")
+
+        # 3. Update Status
+        if status_response.state == "COMPLETED":
+            order.status = 'SUCCESS'
+            
+            # --- FIX FOR THE ERROR ---
+            # payment_details is a LIST of attempts. We take the last one.
+            if status_response.payment_details:
+                # Get the last payment attempt (the successful one)
+                last_attempt = status_response.payment_details[-1]
+                
+                # Extract ID safely
+                if hasattr(last_attempt, 'transaction_id'):
+                    order.transaction_id = last_attempt.transaction_id
+                elif hasattr(last_attempt, 'payment_id'):
+                    order.transaction_id = last_attempt.payment_id
+            
+            order.save()
+            
+            # 4. Enroll User
+            Enrollment.objects.get_or_create(user=order.user, subject=order.subject)
+            
+            messages.success(request, f"Payment Verified! You are now enrolled in {order.subject.name}.")
+            return redirect('dashboard')
+            
+        elif status_response.state == "FAILED":
+            order.status = 'FAILED'
+            order.save()
+            messages.error(request, "Payment Failed.")
+        else:
+            messages.warning(request, f"Payment is still {status_response.state}. Please try again in a moment.")
+
+    except Exception as e:
+        print(f"Manual Check Error: {e}")
+        messages.error(request, "Error checking payment status.")
+
     return redirect('dashboard')
-

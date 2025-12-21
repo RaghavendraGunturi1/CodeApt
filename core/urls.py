@@ -20,10 +20,11 @@ urlpatterns = [
     path('toggle-progress/<int:topic_id>/', views.toggle_topic_completion, name='toggle_progress'),
     path('profile/', views.profile, name='profile'),
     path('buy/<slug:subject_slug>/', views.initiate_payment, name='initiate_payment'),
-    path('payment/callback/', views.payment_callback, name='payment_callback'),
+    path('payment/callback/<str:order_id>/', views.payment_callback, name='payment_callback'),
     path('terms/', views.terms, name='terms'),
     path('privacy/', views.privacy, name='privacy'),
     path('refund-policy/', views.refund_policy, name='refund_policy'),
     path('bulk-upload/<slug:slug>/', curriculum_views.bulk_upload_topics, name='bulk_upload_topics'),
+    path('payment/check-status/<str:order_id>/', views.check_payment_status, name='check_payment_status'),
 
 ]

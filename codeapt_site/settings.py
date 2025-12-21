@@ -136,13 +136,21 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# PhonePe Configuration (TEST SANDBOX)
-# PhonePe Configuration (UPDATED TEST CREDENTIALS)
-PHONEPE_MERCHANT_ID = "PGTESTPAYUAT86"  # Changed from PGTESTPAYUAT
-PHONEPE_SALT_KEY = "96434309-7796-489d-8924-ab56988a6076" # Changed Key
-PHONEPE_SALT_INDEX = 1
-PHONEPE_BASE_URL = "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay"
+import os
 
+# ... other settings ...
+
+# --- PHONEPE CONFIGURATION (PRODUCTION READY) ---
+PHONEPE_CLIENT_ID = os.environ.get("PHONEPE_CLIENT_ID")
+PHONEPE_CLIENT_SECRET = os.environ.get("PHONEPE_CLIENT_SECRET")
+# PhonePe SDK Version & Environment
+PHONEPE_CLIENT_VERSION = int(os.environ.get("PHONEPE_CLIENT_VERSION", 1))
+
+# Switch automatically based on where code is running
+if os.environ.get("VERCEL_ENV") == "production":
+    PHONEPE_ENV = "PRODUCTION"
+else:
+    PHONEPE_ENV = "SANDBOX"
 # Cloud name	
 # dsut5kquw
 # API key	
