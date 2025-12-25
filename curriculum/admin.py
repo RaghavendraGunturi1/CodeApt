@@ -138,3 +138,13 @@ class JobAdmin(admin.ModelAdmin):
     list_display = ('title', 'company_name', 'is_active')
 
 admin.site.register(JobApplication)
+
+# In curriculum/admin.py
+
+from .models import Module  # Ensure Module is imported at the top
+
+@admin.register(Module)
+class ModuleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'subject')
+    list_filter = ('subject',)
+    search_fields = ('name',)
