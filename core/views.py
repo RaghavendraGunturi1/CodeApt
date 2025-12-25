@@ -47,7 +47,7 @@ from curriculum.models import Subject  # Import your new model
 
 from django.db.models import Count, Q
 from curriculum.models import Enrollment, TopicProgress, QuizSubmission
-
+from curriculum.models import JobApplication
 @login_required(login_url='login')
 def dashboard(request):
     # Fetch enrolled courses
@@ -98,7 +98,7 @@ def dashboard(request):
         avg_score = int(total_percentage / total_tests_attempted)
     # ---------------------------------
     pending_orders = Order.objects.filter(user=request.user, status='PENDING').select_related('subject')
-
+    my_applications = JobApplication.objects.filter(user=request.user).select_related('job').order_by('-applied_at')
     context = {
         'user': request.user,
         'course_data': course_data,
@@ -106,7 +106,8 @@ def dashboard(request):
         'total_courses': user_enrollments.count(),
         'total_tests_attempted': total_tests_attempted,
         'avg_score': avg_score,
-        'pending_orders': pending_orders # Add this
+        'pending_orders': pending_orders, # Add this
+        'my_applications': my_applications, # <--- CRITICAL FOR DASHBOARD
     }
     return render(request, 'core/dashboard.html', context)
 
@@ -158,56 +159,55 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-@csrf_exempt # Allow POST requests from the frontend
-def run_code(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        code = data.get('code')
-        language = data.get('language')
-        
-        # Map our frontend language names to Piston API versions
-        # Piston needs specific version numbers or it might fail
-        configs = {
-            'python': {'language': 'python', 'version': '3.10.0'},
-            'java': {'language': 'java', 'version': '15.0.2'},
-            'c_cpp': {'language': 'cpp', 'version': '10.2.0'},
-            'javascript': {'language': 'javascript', 'version': '18.15.0'},
-        }
-        
-        config = configs.get(language)
-        
-        if not config:
-            return JsonResponse({'output': 'Error: Unsupported language'})
+import requests
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 
-        # Prepare payload for Piston API
-        payload = {
-            "language": config['language'],
-            "version": config['version'],
-            "files": [
-                {
-                    "content": code
-                }
-            ]
-        }
-        
-        # Send to Public Piston API (You can change this URL to your self-hosted one later)
+@csrf_exempt
+def run_code(request):
+    if request.method == "POST":
         try:
+            data = json.loads(request.body)
+            code = data.get('code', '')
+            language = data.get('language', 'python')
+            input_data = data.get('input', '')
+
+            # Map your frontend languages to Piston API versions
+            # Piston supports: python, java, c++, javascript, etc.
+            language_map = {
+                'python': {'language': 'python', 'version': '3.10.0'},
+                'java': {'language': 'java', 'version': '15.0.2'},
+                'cpp': {'language': 'c++', 'version': '10.2.0'},
+                'c': {'language': 'c', 'version': '10.2.0'},  # <--- ADDED C HERE
+                'javascript': {'language': 'javascript', 'version': '18.15.0'},
+            }
+            
+            config = language_map.get(language, language_map['python'])
+
+            # Prepare payload for Piston API
+            payload = {
+                "language": config['language'],
+                "version": config['version'],
+                "files": [
+                    {
+                        "content": code
+                    }
+                ],
+                "stdin": input_data
+            }
+
+            # Send to Piston (Free Public API)
             response = requests.post('https://emkc.org/api/v2/piston/execute', json=payload)
             result = response.json()
             
-            # Extract the output
-            if 'run' in result:
-                output = result['run']['stdout'] + result['run']['stderr']
-            else:
-                output = "Error: Could not execute code."
-                
+            output = result.get('run', {}).get('output', '')
             return JsonResponse({'output': output})
-            
+
         except Exception as e:
-            return JsonResponse({'output': f"Server Error: {str(e)}"})
-
-    return JsonResponse({'output': 'Invalid Request'})
-
+            return JsonResponse({'output': f"Error: {str(e)}"}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 from curriculum.models import Question # Import the model
 @login_required(login_url='login')
@@ -720,3 +720,41 @@ def check_payment_status(request, order_id):
         messages.error(request, "Error checking payment status.")
 
     return redirect('dashboard')
+
+
+# In core/views.py
+from curriculum.models import Job, JobApplication
+
+def careers(request):
+    """
+    New separate page for Job Openings.
+    """
+    jobs = Job.objects.filter(is_active=True).order_by('-posted_at')
+    
+    applied_job_ids = []
+    if request.user.is_authenticated:
+        applied_job_ids = JobApplication.objects.filter(user=request.user).values_list('job_id', flat=True)
+
+    context = {
+        'jobs': jobs,
+        'applied_job_ids': applied_job_ids
+    }
+    return render(request, 'core/careers.html', context)
+
+from django.http import JsonResponse
+import json
+
+@login_required(login_url='login')
+def track_application(request, job_id):
+    """
+    Called via AJAX when user clicks 'Mark as Applied'.
+    """
+    if request.method == "POST":
+        job = get_object_or_404(Job, id=job_id)
+        
+        # Create the record
+        JobApplication.objects.get_or_create(user=request.user, job=job)
+        
+        return JsonResponse({'status': 'success', 'message': 'Application recorded'})
+    
+    return JsonResponse({'status': 'error'}, status=400)

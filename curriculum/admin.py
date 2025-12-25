@@ -38,3 +38,11 @@ from .models import Program, Subject, Topic, Question, Choice, TopicProgress # A
 class TopicProgressAdmin(admin.ModelAdmin):
     list_display = ('user', 'topic', 'is_completed', 'updated_at')
     list_filter = ('is_completed', 'user')
+
+from .models import Job, JobApplication
+
+@admin.register(Job)
+class JobAdmin(admin.ModelAdmin):
+    list_display = ('title', 'company_name', 'is_active')
+
+admin.site.register(JobApplication)

@@ -3,6 +3,9 @@
 {% block title %}{{ topic.name }} - CodeApt{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+
 <div class="bg-light min-vh-100 py-5">
     <div class="container">
         
@@ -16,7 +19,7 @@
 
         <div class="row justify-content-center">
             <div class="col-lg-10">
-                <div class="content-card p-5">
+                <div class="content-card p-5 bg-white shadow-sm rounded">
                     
                     <div class="border-bottom pb-4 mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -32,8 +35,7 @@
 
                     {% if topic.topic_type == 'video' and topic.video_id %}
                         
-                        <div class="mb-4 shadow-sm rounded overflow-hidden bg-dark position-relative video-wrapper">
-                            
+                        <div class="mb-4 shadow-sm rounded overflow-hidden bg-dark position-relative video-wrapper" style="min-height: 300px;">
                             <div id="player" 
                                  data-plyr-provider="youtube" 
                                  data-plyr-embed-id="{{ topic.video_id }}">
@@ -52,38 +54,16 @@
                         <script>
                             document.addEventListener('DOMContentLoaded', () => {
                                 const player = new Plyr('#player', {
-                                    controls: [
-                                        'play-large', 'play', 'progress', 'current-time', 
-                                        'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'
-                                    ],
-                                    youtube: { 
-                                        noCookie: true, 
-                                        rel: 0, 
-                                        showinfo: 0, 
-                                        iv_load_policy: 3, 
-                                        modestbranding: 1,
-                                        controls: 0
-                                    }
+                                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
+                                    youtube: { noCookie: true, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1, controls: 0 }
                                 });
                             });
                         </script>
 
                         <style>
-                            /* 1. Disable all mouse interaction with the YouTube iframe */
-                            .plyr__video-embed iframe {
-                                pointer-events: none;
-                            }
-                            
-                            /* 2. Ensure Plyr controls stay clickable */
-                            .plyr__controls {
-                                pointer-events: auto;
-                            }
-
-                            /* 3. Fix Fullscreen Z-Index issues */
-                            .plyr--fullscreen-active .video-shield {
-                                display: block;
-                                z-index: 2147483647; /* Maximum z-index possible */
-                            }
+                            .plyr__video-embed iframe { pointer-events: none; }
+                            .plyr__controls { pointer-events: auto; }
+                            .plyr { width: 100%; height: auto; }
                         </style>
 
                     {% else %}
@@ -93,6 +73,109 @@
                         </div>
 
                     {% endif %}
+                    
+                    <div class="container mt-5 mb-5 px-0">
+                        <div class="card shadow-lg border-0">
+                            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0"><i class="bi bi-code-square me-2"></i>Practice Arena</h5>
+                                
+                                <select id="languageSelect" class="form-select form-select-sm w-auto bg-secondary text-white border-0">
+                                    <option value="python">Python</option>
+                                    <option value="java">Java</option>
+                                    <option value="cpp">C++</option>
+                                    <option value="c">C</option>
+                                    <option value="javascript">JavaScript</option>
+                                </select>
+                            </div>
+                            
+                            <div class="card-body p-0">
+                                <div class="row g-0">
+                                    <div class="col-md-8 border-end">
+                                        <div id="editor" class="bg-white" style="height: 500px; width: 100%;"></div>
+                                    </div>
+                                    
+                                    <div class="col-md-4 bg-light d-flex flex-column">
+                                        <div class="p-2 bg-secondary text-white small fw-bold">Input (Stdin)</div>
+                                        <textarea id="customInput" class="form-control border-0 rounded-0 bg-white" rows="3" placeholder="Enter input here..."></textarea>
+                                        
+                                        <div class="p-2 bg-secondary text-white small fw-bold mt-auto">Output</div>
+                                        <pre id="output" class="flex-grow-1 p-3 m-0 bg-dark text-success font-monospace" style="overflow-y: auto; white-space: pre-wrap;">Run your code to see output...</pre>
+                                        
+                                        <div class="p-3 bg-white border-top">
+                                            <button onclick="runCode()" id="runBtn" class="btn btn-success w-100 fw-bold">
+                                                <i class="bi bi-play-fill"></i> Run Code
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+                    <script>
+                        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+
+                        let editor;
+                        const defaultCode = {
+                            python: "print('Hello, CodeApt!')\n# Write your code here",
+                            java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, CodeApt!\");\n    }\n}",
+                            cpp: "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, CodeApt!\";\n    return 0;\n}",
+                            c: "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, CodeApt!\\n\");\n    return 0;\n}", // ADDED THIS LINE
+                            javascript: "console.log('Hello, CodeApt!');"
+                        };
+
+                        require(['vs/editor/editor.main'], function() {
+                            editor = monaco.editor.create(document.getElementById('editor'), {
+                                value: defaultCode['python'],
+                                language: 'python',
+                                theme: 'vs', // <--- FIXED: Set to 'vs' (Light Theme)
+                                automaticLayout: true,
+                                minimap: { enabled: false },
+                                scrollBeyondLastLine: false,
+                                fontSize: 14
+                            });
+
+                            document.getElementById('languageSelect').addEventListener('change', function(e) {
+                                const lang = e.target.value;
+                                monaco.editor.setModelLanguage(editor.getModel(), lang);
+                                editor.setValue(defaultCode[lang]);
+                            });
+                        });
+
+                        function runCode() {
+                            const runBtn = document.getElementById('runBtn');
+                            const outputDiv = document.getElementById('output');
+                            const code = editor.getValue();
+                            const language = document.getElementById('languageSelect').value;
+                            const input = document.getElementById('customInput').value;
+
+                            runBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+                            runBtn.disabled = true;
+                            outputDiv.innerText = "Executing...";
+
+                            fetch('/run_code/', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': '{{ csrf_token }}'
+                                },
+                                body: JSON.stringify({ code: code, language: language, input: input })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                outputDiv.innerText = data.output;
+                                runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
+                                runBtn.disabled = false;
+                            })
+                            .catch(error => {
+                                outputDiv.innerText = "Error: " + error;
+                                runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
+                                runBtn.disabled = false;
+                            });
+                        }
+                    </script>
+
 
                     <div class="mt-5 pt-4 border-top d-flex justify-content-between">
                         <a href="{% url 'course_detail' subject.slug %}" class="btn btn-outline-secondary px-4">
@@ -121,7 +204,6 @@
         const btn = document.getElementById('mark-complete-btn');
         const url = "{% url 'toggle_progress' topic.id %}";
         
-        // Visual Feedback (Loading)
         btn.innerHTML = 'Saving... <span class="spinner-border spinner-border-sm ms-2"></span>';
         btn.disabled = true;
 
@@ -136,12 +218,10 @@
         .then(data => {
             if (data.status === 'success') {
                 if (data.is_completed) {
-                    // Turn Green
                     btn.classList.remove('btn-outline-success');
                     btn.classList.add('btn-success');
                     btn.innerHTML = 'Completed <i class="bi bi-check-circle-fill ms-2"></i>';
                 } else {
-                    // Turn Outline
                     btn.classList.remove('btn-success');
                     btn.classList.add('btn-outline-success');
                     btn.innerHTML = 'Mark as Complete <i class="bi bi-check-circle ms-2"></i>';

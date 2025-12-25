@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Careers & Openings - CodeApt{% endblock %}
+
+{% block content %}
+<div class="bg-light min-vh-100 py-5">
+    <div class="container">
+        
+        <div class="text-center mb-5">
+            <span class="badge bg-primary bg-opacity-10 text-primary mb-2">Hiring Now</span>
+            <h1 class="fw-bold brand-black">Career Opportunities</h1>
+            <p class="text-muted lead">Exclusive job openings for CodeApt students.</p>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                {% for job in jobs %}
+                <div class="card shadow-sm border-0 mb-4 hover-shadow transition-all">
+                    <div class="card-body p-4">
+                        <div class="row align-items-center">
+                            
+                            <div class="col-md-8">
+                                <div class="d-flex align-items-center mb-2">
+                                    <h4 class="fw-bold mb-0 me-3">{{ job.title }}</h4>
+                                    <span class="badge bg-light text-dark border">
+                                        <i class="bi bi-geo-alt-fill me-1"></i> {{ job.location }}
+                                    </span>
+                                </div>
+                                <h6 class="text-primary fw-bold mb-3">{{ job.company_name }}</h6>
+                                <p class="text-muted mb-0">{{ job.description|linebreaks|truncatewords:40 }}</p>
+                                <small class="text-muted mt-2 d-block">Posted: {{ job.posted_at|date:"M d, Y" }}</small>
+                            </div>
+
+                            <div class="col-md-5 text-md-end mt-4 mt-md-0">
+                                
+                                {% if user.is_authenticated and job.id in applied_job_ids %}
+                                    <button class="btn btn-success px-4 py-2 disabled">
+                                        <i class="bi bi-check-circle-fill me-2"></i>Applied
+                                    </button>
+                                    
+                                {% else %}
+                                    <div class="d-flex flex-column align-items-end gap-2" id="action-group-{{ job.id }}">
+                                        
+                                        <a href="{{ job.apply_link }}" target="_blank" class="btn btn-primary px-4 w-100">
+                                            Apply on Company Site <i class="bi bi-box-arrow-up-right ms-2"></i>
+                                        </a>
+
+                                        {% if user.is_authenticated %}
+                                        <button onclick="markAsApplied({{ job.id }})" class="btn btn-outline-secondary btn-sm w-100">
+                                            <i class="bi bi-check2-square me-1"></i> I have applied
+                                        </button>
+                                        {% else %}
+                                        <a href="{% url 'login' %}?next={% url 'careers' %}" class="btn btn-outline-secondary btn-sm w-100">
+                                            Login to track
+                                        </a>
+                                        {% endif %}
+                                        
+                                    </div>
+
+                                    <button id="success-btn-{{ job.id }}" class="btn btn-success px-4 py-2 disabled d-none">
+                                        <i class="bi bi-check-circle-fill me-2"></i>Applied
+                                    </button>
+                                {% endif %}
+                                
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="bi bi-briefcase text-muted" style="font-size: 3rem;"></i>
+                    </div>
+                    <h4>No active openings right now.</h4>
+                    <p class="text-muted">Please check back later!</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .hover-shadow:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+    }
+    .transition-all {
+        transition: all 0.3s ease;
+    }
+</style>
+<script>
+    function markAsApplied(jobId) {
+        const url = `/apply-job/${jobId}/`;
+        const actionGroup = document.getElementById(`action-group-${jobId}`);
+        const successBtn = document.getElementById(`success-btn-${jobId}`);
+        
+        // 1. Send Request to Backend
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // 2. Hide Buttons, Show Success
+                actionGroup.classList.add('d-none');
+                successBtn.classList.remove('d-none');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Something went wrong. Please try again.');
+        });
+    }
+</script>
+{% endblock %}

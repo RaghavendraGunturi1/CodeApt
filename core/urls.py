@@ -26,5 +26,6 @@ urlpatterns = [
     path('refund-policy/', views.refund_policy, name='refund_policy'),
     path('bulk-upload/<slug:slug>/', curriculum_views.bulk_upload_topics, name='bulk_upload_topics'),
     path('payment/check-status/<str:order_id>/', views.check_payment_status, name='check_payment_status'),
-
+    path('careers/', views.careers, name='careers'),  # New Page
+    path('apply-job/<int:job_id>/', views.track_application, name='track_application'),
 ]
