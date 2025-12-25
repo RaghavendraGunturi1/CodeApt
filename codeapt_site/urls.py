@@ -6,4 +6,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('core.urls')),  # Connect core urls
     path('accounts/', include('accounts.urls')), # NEW LINE
+    path('challenges/', include('challenges.urls')),
 ]

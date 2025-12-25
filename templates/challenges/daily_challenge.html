@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-5">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="fw-bold">Daily Challenge</h1>
+            <p class="text-muted">{{ question.release_date|date:"F d, Y" }}</p>
+        </div>
+        <div class="text-end">
+            <div class="badge bg-warning text-dark p-3 fs-5 shadow-sm">
+                <i class="bi bi-fire"></i> {{ streak.current_streak }} Day Streak
+            </div>
+            <div class="mt-2 fw-bold text-primary">Total Score: {{ streak.total_score }}</div>
+        </div>
+    </div>
+
+    {% if not question %}
+        <div class="alert alert-info">No challenge available for today. Come back tomorrow!</div>
+    {% else %}
+    
+        <div class="card shadow-lg border-0">
+            <div class="card-body p-5">
+                <h3 class="fw-bold mb-3">{{ question.title }}</h3>
+                <p class="lead" style="white-space: pre-wrap;">{{ question.description }}</p>
+
+                <hr class="my-4">
+
+                {% if already_solved %}
+                    <div class="alert alert-success text-center">
+                        <h4><i class="bi bi-check-circle-fill"></i> Completed!</h4>
+                        <p>You scored <strong>{{ submission.score }}/5</strong> on this challenge.</p>
+                    </div>
+                {% else %}
+
+                    {% if question.question_type == 'MCQ' %}
+                        <form action="{% url 'submit_mcq' question.id %}" method="POST">
+                            {% csrf_token %}
+                            <div class="d-grid gap-3">
+                                <button name="option" value="A" class="btn btn-outline-dark text-start p-3">A) {{ question.option_a }}</button>
+                                <button name="option" value="B" class="btn btn-outline-dark text-start p-3">B) {{ question.option_b }}</button>
+                                <button name="option" value="C" class="btn btn-outline-dark text-start p-3">C) {{ question.option_c }}</button>
+                                <button name="option" value="D" class="btn btn-outline-dark text-start p-3">D) {{ question.option_d }}</button>
+                            </div>
+                        </form>
+
+                    {% elif question.question_type == 'CODE' %}
+                        <div id="coding-area">
+                            <div id="editor" style="height:400px; border:1px solid #ccc;"></div>
+                            <button onclick="submitSolution()" class="btn btn-primary mt-3 w-100">Submit Solution</button>
+                            <div id="test-results" class="mt-3"></div>
+                        </div>
+
+                        <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+                        <script>
+                            // ... [Include Monaco Config Here] ...
+                            
+                            function submitSolution() {
+                                const code = editor.getValue();
+                                fetch("{% url 'submit_code' question.id %}", {
+                                    method: 'POST',
+                                    headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+                                    body: JSON.stringify({code: code, language: 'python'}) 
+                                })
+                                .then(res => res.text())
+                                .then(html => {
+                                    document.getElementById('test-results').innerHTML = html;
+                                    // Refresh page after 2 seconds to update streak UI
+                                    setTimeout(() => window.location.reload(), 2000);
+                                });
+                            }
+                        </script>
+                    {% endif %}
+
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

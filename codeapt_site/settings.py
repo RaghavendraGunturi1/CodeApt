@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'core',
     'accounts',  # NEW: Your login system
     'curriculum',
+    'challenges',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -34,6 +35,7 @@ INSTALLED_APPS = [
     # Add these two:
     'cloudinary_storage',
     'cloudinary',
+    
 ]
 
 MIDDLEWARE = [

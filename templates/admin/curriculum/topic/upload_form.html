@@ -1,0 +1,74 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; Bulk Upload
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <fieldset class="module aligned">
+            <div class="form-row">
+                <p>Use this form to bulk upload topics and videos via Excel.</p>
+            </div>
+            
+            <div class="form-row">
+                {{ form.as_p }}
+            </div>
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="Upload and Import" class="default" name="_save">
+        </div>
+    </form>
+
+    <br>
+    <div class="module">
+        <h2>Excel Format Guide</h2>
+        <table style="width: 100%; text-align: left; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f8f8; border-bottom: 2px solid #ddd;">
+                    <th style="padding: 10px;">Column Name</th>
+                    <th style="padding: 10px;">Description</th>
+                    <th style="padding: 10px;">Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>module</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">The Section/Chapter name</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>Introduction to Python</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>title</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">Name of the video/topic</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>Variables & Data Types</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>video_url</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">Full YouTube Link</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>https://youtube.com/watch?v=xyz123</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>description</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">(Optional) Text content</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>In this video we learn...</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>order</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">Sequence number</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>1</i></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

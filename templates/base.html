@@ -49,7 +49,15 @@
                         <li><a class="dropdown-item" href="{% url 'refund_policy' %}">Refund Policy</a></li>
                     </ul>
                 </li>
-                
+                <li class="nav-item">
+                    <a class="nav-link fw-bold text-danger" href="{% url 'daily_challenge' %}">
+                        <i class="bi bi-fire"></i> Daily Challenge
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'leaderboard' %}">Leaderboard</a>
+                </li>                
                 {% if user.is_authenticated %}
                     <li class="nav-item dropdown ms-3">
                         <a class="nav-link dropdown-toggle fw-bold text-dark btn btn-light border px-3 rounded-pill" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">

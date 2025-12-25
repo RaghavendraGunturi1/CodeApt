@@ -48,6 +48,7 @@ from curriculum.models import Subject  # Import your new model
 from django.db.models import Count, Q
 from curriculum.models import Enrollment, TopicProgress, QuizSubmission
 from curriculum.models import JobApplication
+from challenges.models import UserStreak
 @login_required(login_url='login')
 def dashboard(request):
     # Fetch enrolled courses
@@ -99,6 +100,7 @@ def dashboard(request):
     # ---------------------------------
     pending_orders = Order.objects.filter(user=request.user, status='PENDING').select_related('subject')
     my_applications = JobApplication.objects.filter(user=request.user).select_related('job').order_by('-applied_at')
+    streak_obj, created = UserStreak.objects.get_or_create(user=request.user)
     context = {
         'user': request.user,
         'course_data': course_data,
@@ -108,6 +110,7 @@ def dashboard(request):
         'avg_score': avg_score,
         'pending_orders': pending_orders, # Add this
         'my_applications': my_applications, # <--- CRITICAL FOR DASHBOARD
+        'streak': streak_obj, # <--- Add this
     }
     return render(request, 'core/dashboard.html', context)
 

@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Upload Daily Challenges Excel</h1>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="button">Upload & Schedule</button>
+</form>
+<p><strong>Excel Format Columns:</strong> type, title, description, option_a, option_b, option_c, option_d, correct_option, input1, output1, input2, output2 ... input5, output5</p>
+{% endblock %}
