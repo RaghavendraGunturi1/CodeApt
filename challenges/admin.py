@@ -10,10 +10,18 @@ from .models import DailyQuestion, TestCase, UserStreak, DailySubmission
 class ExcelUploadForm(forms.Form):
     file = forms.FileField()
 
+class TestCaseInline(admin.TabularInline):
+    model = TestCase
+    extra = 1           # Shows 1 empty slot for a new test case
+    min_num = 0         # Allows saving without test cases (important for MCQs)
+    can_delete = True   # Allows deleting test cases directly here
+    fields = ('input_data', 'expected_output') # Only show relevant fields
+
 @admin.register(DailyQuestion)
 class DailyQuestionAdmin(admin.ModelAdmin):
     list_display = ('title', 'question_type', 'release_date')
     change_list_template = "admin/challenges_changelist.html"
+    inlines = [TestCaseInline]
 
     def get_urls(self):
         urls = super().get_urls()
