@@ -1,0 +1,37 @@
+<div class="border rounded p-3 bg-white shadow-sm mt-3">
+    <h5 class="fw-bold mb-3">
+        Submission Result: 
+        <span class="{% if score == total %}text-success{% else %}text-warning{% endif %}">
+            {{ score }} / {{ total }} Passed
+        </span>
+    </h5>
+
+    <div class="d-flex flex-column gap-2">
+        {% for passed in results %}
+            <div class="d-flex justify-content-between align-items-center border rounded p-2 {% if passed %}bg-success bg-opacity-10 border-success{% else %}bg-danger bg-opacity-10 border-danger{% endif %}">
+                <span class="fw-bold small">Test Case #{{ forloop.counter }}</span>
+                {% if passed %}
+                    <span class="badge bg-success"><i class="bi bi-check-lg"></i> Passed</span>
+                {% else %}
+                    <span class="badge bg-danger"><i class="bi bi-x-lg"></i> Failed</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    {% if score == total %}
+        <div class="alert alert-success mt-3 mb-0 text-center fw-bold">
+            <i class="bi bi-trophy-fill me-2"></i> Perfect! Streak Updated.
+        </div>
+        <script>
+            // Reload page automatically after 2 seconds to show the "Completed" state
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        </script>
+    {% else %}
+        <div class="alert alert-secondary mt-3 mb-0 small text-center">
+            Review your logic and try again.
+        </div>
+    {% endif %}
+</div>

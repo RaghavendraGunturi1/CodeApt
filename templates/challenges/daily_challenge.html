@@ -1,80 +1,239 @@
 {% extends 'base.html' %}
+{% block title %}Daily Challenge - CodeApt{% endblock %}
+
 {% block content %}
-<div class="container py-5">
-    
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="fw-bold">Daily Challenge</h1>
-            <p class="text-muted">{{ question.release_date|date:"F d, Y" }}</p>
-        </div>
-        <div class="text-end">
-            <div class="badge bg-warning text-dark p-3 fs-5 shadow-sm">
-                <i class="bi bi-fire"></i> {{ streak.current_streak }} Day Streak
+<div class="bg-light min-vh-100 py-5">
+    <div class="container">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="fw-bold brand-black">Daily Challenge</h1>
+                <p class="text-muted">{{ question.release_date|date:"F d, Y" }}</p>
             </div>
-            <div class="mt-2 fw-bold text-primary">Total Score: {{ streak.total_score }}</div>
+            <div class="text-end">
+                <div class="badge bg-warning text-dark p-3 fs-5 shadow-sm">
+                    <i class="bi bi-fire"></i> {{ streak.current_streak }} Day Streak
+                </div>
+                <div class="mt-2 fw-bold text-primary">Total Score: {{ streak.total_score }} XP</div>
+            </div>
         </div>
-    </div>
 
-    {% if not question %}
-        <div class="alert alert-info">No challenge available for today. Come back tomorrow!</div>
-    {% else %}
-    
-        <div class="card shadow-lg border-0">
-            <div class="card-body p-5">
-                <h3 class="fw-bold mb-3">{{ question.title }}</h3>
-                <p class="lead" style="white-space: pre-wrap;">{{ question.description }}</p>
-
-                <hr class="my-4">
-
-                {% if already_solved %}
-                    <div class="alert alert-success text-center">
-                        <h4><i class="bi bi-check-circle-fill"></i> Completed!</h4>
-                        <p>You scored <strong>{{ submission.score }}/5</strong> on this challenge.</p>
-                    </div>
-                {% else %}
-
-                    {% if question.question_type == 'MCQ' %}
-                        <form action="{% url 'submit_mcq' question.id %}" method="POST">
-                            {% csrf_token %}
-                            <div class="d-grid gap-3">
-                                <button name="option" value="A" class="btn btn-outline-dark text-start p-3">A) {{ question.option_a }}</button>
-                                <button name="option" value="B" class="btn btn-outline-dark text-start p-3">B) {{ question.option_b }}</button>
-                                <button name="option" value="C" class="btn btn-outline-dark text-start p-3">C) {{ question.option_c }}</button>
-                                <button name="option" value="D" class="btn btn-outline-dark text-start p-3">D) {{ question.option_d }}</button>
-                            </div>
-                        </form>
-
-                    {% elif question.question_type == 'CODE' %}
-                        <div id="coding-area">
-                            <div id="editor" style="height:400px; border:1px solid #ccc;"></div>
-                            <button onclick="submitSolution()" class="btn btn-primary mt-3 w-100">Submit Solution</button>
-                            <div id="test-results" class="mt-3"></div>
+        {% if not question %}
+            <div class="alert alert-info shadow-sm">
+                <i class="bi bi-info-circle-fill me-2"></i> No challenge available for today. Come back tomorrow!
+            </div>
+        {% else %}
+        
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    
+                    <div class="mb-4">
+                        <span class="badge {% if question.question_type == 'MCQ' %}bg-primary{% else %}bg-purple{% endif %} mb-2">
+                            {{ question.get_question_type_display }}
+                        </span>
+                        <h3 class="fw-bold mb-3">{{ question.title }}</h3>
+                        <div class="p-3 bg-light rounded border">
+                            <p class="lead mb-0" style="white-space: pre-wrap; font-size: 1.1rem;">{{ question.description }}</p>
                         </div>
+                    </div>
 
-                        <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
-                        <script>
-                            // ... [Include Monaco Config Here] ...
+                    <hr class="my-4">
+
+                    {% if already_solved %}
+                        <div class="alert alert-success text-center p-5">
+                            <div class="display-1 text-success mb-3"><i class="bi bi-check-circle-fill"></i></div>
+                            <h2 class="fw-bold">Challenge Completed!</h2>
+                            <p class="fs-5">You scored <strong>{{ submission.score }}/5</strong> points on this challenge.</p>
+                            <a href="{% url 'leaderboard' %}" class="btn btn-outline-success mt-3">View Leaderboard</a>
+                        </div>
+                    
+                    {% else %}
+
+                        {% if question.question_type == 'MCQ' %}
+                            <form action="{% url 'submit_mcq' question.id %}" method="POST">
+                                {% csrf_token %}
+                                <div class="d-grid gap-3 col-md-8 mx-auto">
+                                    <button name="option" value="A" class="btn btn-outline-dark text-start p-3 fs-5 hover-shadow">
+                                        <span class="fw-bold me-2">A)</span> {{ question.option_a }}
+                                    </button>
+                                    <button name="option" value="B" class="btn btn-outline-dark text-start p-3 fs-5 hover-shadow">
+                                        <span class="fw-bold me-2">B)</span> {{ question.option_b }}
+                                    </button>
+                                    <button name="option" value="C" class="btn btn-outline-dark text-start p-3 fs-5 hover-shadow">
+                                        <span class="fw-bold me-2">C)</span> {{ question.option_c }}
+                                    </button>
+                                    <button name="option" value="D" class="btn btn-outline-dark text-start p-3 fs-5 hover-shadow">
+                                        <span class="fw-bold me-2">D)</span> {{ question.option_d }}
+                                    </button>
+                                </div>
+                            </form>
+
+                        {% elif question.question_type == 'CODE' %}
                             
-                            function submitSolution() {
-                                const code = editor.getValue();
-                                fetch("{% url 'submit_code' question.id %}", {
-                                    method: 'POST',
-                                    headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
-                                    body: JSON.stringify({code: code, language: 'python'}) 
-                                })
-                                .then(res => res.text())
-                                .then(html => {
-                                    document.getElementById('test-results').innerHTML = html;
-                                    // Refresh page after 2 seconds to update streak UI
-                                    setTimeout(() => window.location.reload(), 2000);
-                                });
-                            }
-                        </script>
-                    {% endif %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 bg-dark text-white p-2 rounded-top">
+                                <span class="small fw-bold ms-2"><i class="bi bi-code-slash me-2"></i>Code Editor</span>
+                                <select id="languageSelect" class="form-select form-select-sm w-auto bg-secondary text-white border-0">
+                                    <option value="python">Python</option>
+                                    <option value="java">Java</option>
+                                    <option value="cpp">C++</option>
+                                    <option value="c">C</option>
+                                    <option value="javascript">JavaScript</option>
+                                </select>
+                            </div>
 
-                {% endif %}
+                            <div class="row g-0 border rounded overflow-hidden mb-3">
+                                <div class="col-md-8 border-end">
+                                    <div id="editor" class="bg-white" style="height: 500px; width: 100%;"></div>
+                                </div>
+                                
+                                <div class="col-md-4 bg-light d-flex flex-column">
+                                    <div class="p-2 bg-secondary text-white small fw-bold">Test Input (Stdin)</div>
+                                    <textarea id="customInput" class="form-control border-0 rounded-0 bg-white" rows="4" placeholder="Enter custom input to test your code..."></textarea>
+                                    
+                                    <div class="p-2 bg-secondary text-white small fw-bold mt-auto">Output / Result</div>
+                                    <div id="outputContainer" class="flex-grow-1 p-0 bg-dark position-relative" style="overflow-y: auto; height: 100%;">
+                                        <pre id="output" class="p-3 m-0 text-success font-monospace" style="white-space: pre-wrap;">Run code to see output...</pre>
+                                        <div id="test-results" class="p-3"></div>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-white border-top d-flex gap-2">
+                                        <button onclick="runCode()" id="runBtn" class="btn btn-secondary flex-grow-1 fw-bold">
+                                            <i class="bi bi-play-fill"></i> Run (Test)
+                                        </button>
+                                        <button onclick="submitSolution()" id="submitBtn" class="btn btn-primary flex-grow-1 fw-bold">
+                                            <i class="bi bi-send-fill"></i> Submit Solution
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+                            <script>
+                                require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+
+                                let editor;
+                                const defaultCode = {
+                                    python: "# Write your code here\n# Read input using input()\n# Print output using print()\n\nuser_input = input()\nprint(f'You entered: {user_input}')",
+                                    java: "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        if(scanner.hasNext()) {\n            String input = scanner.nextLine();\n            System.out.println(input);\n        }\n    }\n}",
+                                    cpp: "#include <iostream>\n#include <string>\n\nint main() {\n    std::string input;\n    std::getline(std::cin, input);\n    std::cout << input;\n    return 0;\n}",
+                                    c: "#include <stdio.h>\n\nint main() {\n    char input[100];\n    scanf(\"%s\", input);\n    printf(\"%s\", input);\n    return 0;\n}",
+                                    javascript: "const fs = require('fs');\nconst input = fs.readFileSync(0, 'utf-8').trim();\nconsole.log(input);"
+                                };
+
+                                require(['vs/editor/editor.main'], function() {
+                                    editor = monaco.editor.create(document.getElementById('editor'), {
+                                        value: defaultCode['python'],
+                                        language: 'python',
+                                        theme: 'vs', // Light theme
+                                        automaticLayout: true,
+                                        minimap: { enabled: false },
+                                        fontSize: 14,
+                                        scrollBeyondLastLine: false
+                                    });
+
+                                    // Handle Language Change
+                                    document.getElementById('languageSelect').addEventListener('change', function(e) {
+                                        const lang = e.target.value;
+                                        monaco.editor.setModelLanguage(editor.getModel(), lang);
+                                        editor.setValue(defaultCode[lang]);
+                                    });
+                                });
+
+                                // --- 1. RUN CODE (TESTING ONLY) ---
+                                function runCode() {
+                                    const runBtn = document.getElementById('runBtn');
+                                    const outputDiv = document.getElementById('output');
+                                    const resultsDiv = document.getElementById('test-results');
+                                    
+                                    // Reset View
+                                    outputDiv.style.display = 'block';
+                                    resultsDiv.innerHTML = ''; // Clear submission results
+
+                                    const code = editor.getValue();
+                                    const language = document.getElementById('languageSelect').value;
+                                    const input = document.getElementById('customInput').value;
+
+                                    runBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testing...';
+                                    runBtn.disabled = true;
+                                    outputDiv.innerText = "Compiling & Executing...";
+
+                                    // Calls your generic code runner
+                                    fetch('/run_code/', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRFToken': '{{ csrf_token }}'
+                                        },
+                                        body: JSON.stringify({ code: code, language: language, input: input })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        outputDiv.innerText = data.output;
+                                        runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run (Test)';
+                                        runBtn.disabled = false;
+                                    })
+                                    .catch(error => {
+                                        outputDiv.innerText = "Error: " + error;
+                                        runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run (Test)';
+                                        runBtn.disabled = false;
+                                    });
+                                }
+
+                                // --- 2. SUBMIT SOLUTION (GRADING) ---
+                                function submitSolution() {
+                                    const submitBtn = document.getElementById('submitBtn');
+                                    const outputDiv = document.getElementById('output');
+                                    const resultsDiv = document.getElementById('test-results');
+
+                                    // Hide standard output, show results area
+                                    outputDiv.style.display = 'none';
+                                    resultsDiv.innerHTML = '<div class="text-warning">Running Test Cases... <div class="spinner-border spinner-border-sm"></div></div>';
+                                    
+                                    submitBtn.disabled = true;
+
+                                    const code = editor.getValue();
+                                    const language = document.getElementById('languageSelect').value;
+
+                                    // Calls the specific Daily Challenge submitter
+                                    fetch("{% url 'submit_code' question.id %}", {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRFToken': '{{ csrf_token }}'
+                                        },
+                                        body: JSON.stringify({ code: code, language: language }) 
+                                    })
+                                    .then(res => res.text()) // Expecting HTML partial for results
+                                    .then(html => {
+                                        resultsDiv.innerHTML = html;
+                                        submitBtn.disabled = false;
+                                        
+                                        // If success (you can parse HTML or pass a flag, but for now we wait)
+                                        // Optional: Reload if all passed to show "Completed" state
+                                        // setTimeout(() => window.location.reload(), 3000);
+                                    })
+                                    .catch(err => {
+                                        resultsDiv.innerHTML = '<div class="text-danger">Submission Failed. Try again.</div>';
+                                        submitBtn.disabled = false;
+                                    });
+                                }
+                            </script>
+
+                        {% endif %} {% endif %} </div>
             </div>
-        </div>
-    {% endif %}
+        {% endif %}
+    </div>
 </div>
+
+<style>
+    .hover-shadow:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+        transition: all 0.2s ease;
+    }
+    .bg-purple {
+        background-color: #6f42c1;
+        color: white;
+    }
+</style>
 {% endblock %}
