@@ -1,4 +1,5 @@
-<div class="border rounded p-3 bg-white shadow-sm mt-3">
+<div class="border rounded p-3 bg-white shadow-sm mt-3 text-dark">
+    
     <h5 class="fw-bold mb-3">
         Submission Result: 
         <span class="{% if score == total %}text-success{% else %}text-warning{% endif %}">
@@ -8,12 +9,12 @@
 
     <div class="d-flex flex-column gap-2">
         {% for passed in results %}
-            <div class="d-flex justify-content-between align-items-center border rounded p-2 {% if passed %}bg-success bg-opacity-10 border-success{% else %}bg-danger bg-opacity-10 border-danger{% endif %}">
+            <div class="d-flex justify-content-between align-items-center border rounded p-2 text-dark {% if passed %}bg-success bg-opacity-10 border-success{% else %}bg-danger bg-opacity-10 border-danger{% endif %}">
                 <span class="fw-bold small">Test Case #{{ forloop.counter }}</span>
                 {% if passed %}
-                    <span class="badge bg-success"><i class="bi bi-check-lg"></i> Passed</span>
+                    <span class="badge bg-success text-white"><i class="bi bi-check-lg"></i> Passed</span>
                 {% else %}
-                    <span class="badge bg-danger"><i class="bi bi-x-lg"></i> Failed</span>
+                    <span class="badge bg-danger text-white"><i class="bi bi-x-lg"></i> Failed</span>
                 {% endif %}
             </div>
         {% endfor %}
@@ -30,7 +31,7 @@
             }, 2000);
         </script>
     {% else %}
-        <div class="alert alert-secondary mt-3 mb-0 small text-center">
+        <div class="alert alert-secondary mt-3 mb-0 small text-center text-muted">
             Review your logic and try again.
         </div>
     {% endif %}

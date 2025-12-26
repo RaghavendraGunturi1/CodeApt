@@ -23,6 +23,8 @@ class DailyQuestion(models.Model):
     option_c = models.CharField(max_length=200, blank=True, null=True)
     option_d = models.CharField(max_length=200, blank=True, null=True)
     correct_option = models.CharField(max_length=10, choices=[('A','A'), ('B','B'), ('C','C'), ('D','D')], blank=True, null=True)
+    starter_code = models.TextField(blank=True, null=True, help_text="Pre-filled code for the editor")
+
 
     def __str__(self):
         return f"{self.release_date} - {self.title}"

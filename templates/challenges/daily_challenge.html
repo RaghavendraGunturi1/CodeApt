@@ -112,8 +112,15 @@
                                 require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
 
                                 let editor;
+                                
+                                // --- CRITICAL UPDATE: FETCH STARTER CODE FROM DB ---
+                                // We use escapejs to handle newlines/quotes safely in JS string
+                                const dbStarterCode = "{{ question.starter_code|escapejs }}";
+
                                 const defaultCode = {
-                                    python: "# Write your code here\n# Read input using input()\n# Print output using print()\n\nuser_input = input()\nprint(f'You entered: {user_input}')",
+                                    // If DB has starter code, use it. Otherwise use generic Python boilerplate.
+                                    python: dbStarterCode ? dbStarterCode : "print('Hello, CodeApt!')\n# Write your code here",
+                                    
                                     java: "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner scanner = new Scanner(System.in);\n        if(scanner.hasNext()) {\n            String input = scanner.nextLine();\n            System.out.println(input);\n        }\n    }\n}",
                                     cpp: "#include <iostream>\n#include <string>\n\nint main() {\n    std::string input;\n    std::getline(std::cin, input);\n    std::cout << input;\n    return 0;\n}",
                                     c: "#include <stdio.h>\n\nint main() {\n    char input[100];\n    scanf(\"%s\", input);\n    printf(\"%s\", input);\n    return 0;\n}",
@@ -207,10 +214,6 @@
                                     .then(html => {
                                         resultsDiv.innerHTML = html;
                                         submitBtn.disabled = false;
-                                        
-                                        // If success (you can parse HTML or pass a flag, but for now we wait)
-                                        // Optional: Reload if all passed to show "Completed" state
-                                        // setTimeout(() => window.location.reload(), 3000);
                                     })
                                     .catch(err => {
                                         resultsDiv.innerHTML = '<div class="text-danger">Submission Failed. Try again.</div>';
