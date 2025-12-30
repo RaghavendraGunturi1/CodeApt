@@ -349,7 +349,11 @@ def placements(request):
         "KGRCET, Hyderabad",
         "KPRIT, Hyderabad",
         "Sreerama Engg. College, Tirupati",
-        "Pydah College of Engineering, Kakinada"
+        "Pydah College of Engineering, Kakinada",
+        "KIET Women, Kakinada",
+        "AITS, Kadapa",
+        "SVCE, Tirupati",
+        "KITS Akshar, Guntur"
     ]
 
     context = {
