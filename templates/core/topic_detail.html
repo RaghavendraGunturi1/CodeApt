@@ -23,9 +23,13 @@
                     
                     <div class="border-bottom pb-4 mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="badge bg-info bg-opacity-10 text-info border border-info">
-                                Topic #{{ topic.order }}
+                            <span class="badge 
+                                {% if topic.topic_type == 'exam' %}bg-danger text-danger border-danger
+                                {% else %}bg-info text-info border-info{% endif %} 
+                                bg-opacity-10 border">
+                                {% if topic.topic_type == 'exam' %}Mock Exam{% else %}Topic{% endif %} #{{ topic.order }}
                             </span>
+                            
                             {% if topic.duration %}
                             <span class="text-muted small"><i class="bi bi-clock me-1"></i> {{ topic.duration }}</span>
                             {% endif %}
@@ -33,15 +37,40 @@
                         <h1 class="fw-bold brand-black">{{ topic.name }}</h1>
                     </div>
 
-                    {% if topic.topic_type == 'video' and topic.video_id %}
+                    {% if topic.topic_type == 'exam' %}
                         
-                        <div class="mb-4 shadow-sm rounded overflow-hidden bg-dark position-relative video-wrapper" style="min-height: 300px;">
-                            <div id="player" 
-                                 data-plyr-provider="youtube" 
-                                 data-plyr-embed-id="{{ topic.video_id }}">
+                        <div class="text-center py-5 bg-light rounded border border-danger border-opacity-25">
+                            <div class="mb-4">
+                                <i class="bi bi-stopwatch text-danger" style="font-size: 4rem;"></i>
+                            </div>
+                            <h3 class="fw-bold">Mock Exam Ready</h3>
+                            <p class="text-muted mb-4">
+                                This exam runs in full-screen mode.<br>
+                                Strict proctoring rules apply (No tab switching, No copy/paste).
+                            </p>
+                            
+                            <a href="{% url 'start_exam' topic.id %}" class="btn btn-danger btn-lg px-5 py-3 fw-bold shadow-sm">
+                                <i class="bi bi-play-circle-fill me-2"></i> Start Mock Exam
+                            </a>
+                            
+                            <div class="mt-4">
+                                <a href="{% url 'course_detail' subject.slug %}" class="btn btn-link text-secondary text-decoration-none">
+                                    <i class="bi bi-arrow-left me-1"></i> Return to Course
+                                </a>
                             </div>
                         </div>
-                        
+
+                    {% else %}
+
+                        {% if topic.topic_type == 'video' and topic.video_id %}
+                            <div class="mb-4 shadow-sm rounded overflow-hidden bg-dark position-relative video-wrapper" style="min-height: 300px;">
+                                <div id="player" 
+                                     data-plyr-provider="youtube" 
+                                     data-plyr-embed-id="{{ topic.video_id }}">
+                                </div>
+                            </div>
+                        {% endif %}
+
                         {% if topic.content %}
                             <div class="mt-4 p-4 bg-light rounded border">
                                 <h5 class="fw-bold text-dark mb-3"><i class="bi bi-file-text me-2"></i>Lecture Notes</h5>
@@ -51,12 +80,69 @@
                             </div>
                         {% endif %}
 
+                        <div class="container mt-5 mb-5 px-0">
+                            <div class="card shadow-lg border-0">
+                                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0"><i class="bi bi-code-square me-2"></i>Practice Arena</h5>
+                                    
+                                    <select id="languageSelect" class="form-select form-select-sm w-auto bg-secondary text-white border-0">
+                                        <option value="python">Python</option>
+                                        <option value="java">Java</option>
+                                        <option value="cpp">C++</option>
+                                        <option value="c">C</option>
+                                        <option value="javascript">JavaScript</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="card-body p-0">
+                                    <div class="row g-0">
+                                        <div class="col-md-8 border-end">
+                                            <div id="editor" class="bg-white" style="height: 500px; width: 100%;"></div>
+                                        </div>
+                                        
+                                        <div class="col-md-4 bg-light d-flex flex-column">
+                                            <div class="p-2 bg-secondary text-white small fw-bold">Input (Stdin)</div>
+                                            <textarea id="customInput" class="form-control border-0 rounded-0 bg-white" rows="3" placeholder="Enter input here..."></textarea>
+                                            
+                                            <div class="p-2 bg-secondary text-white small fw-bold mt-auto">Output</div>
+                                            <pre id="output" class="flex-grow-1 p-3 m-0 bg-dark text-success font-monospace" style="overflow-y: auto; white-space: pre-wrap;">Run your code to see output...</pre>
+                                            
+                                            <div class="p-3 bg-white border-top">
+                                                <button onclick="runCode()" id="runBtn" class="btn btn-success w-100 fw-bold">
+                                                    <i class="bi bi-play-fill"></i> Run Code
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 pt-4 border-top d-flex justify-content-between">
+                            <a href="{% url 'course_detail' subject.slug %}" class="btn btn-outline-secondary px-4">
+                                <i class="bi bi-arrow-left me-2"></i> Back to Course
+                            </a>
+                            
+                            <button id="mark-complete-btn" 
+                                    class="btn {% if is_completed %}btn-success{% else %}btn-outline-success{% endif %} px-4" 
+                                    onclick="toggleCompletion()">
+                                {% if is_completed %}
+                                    Completed <i class="bi bi-check-circle-fill ms-2"></i>
+                                {% else %}
+                                    Mark as Complete <i class="bi bi-check-circle ms-2"></i>
+                                {% endif %}
+                            </button>
+                        </div>
+
                         <script>
+                            // Plyr Init
                             document.addEventListener('DOMContentLoaded', () => {
-                                const player = new Plyr('#player', {
-                                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
-                                    youtube: { noCookie: true, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1, controls: 0 }
-                                });
+                                if(document.getElementById('player')) {
+                                    const player = new Plyr('#player', {
+                                        controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
+                                        youtube: { noCookie: true, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1, controls: 0 }
+                                    });
+                                }
                             });
                         </script>
 
@@ -66,173 +152,110 @@
                             .plyr { width: 100%; height: auto; }
                         </style>
 
-                    {% else %}
-                        
-                        <div class="topic-content text-muted" style="line-height: 1.8; font-size: 1.1rem;">
-                            {{ topic.content|linebreaks }}
-                        </div>
+                        <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+                        <script>
+                            require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
 
-                    {% endif %}
-                    
-                    <div class="container mt-5 mb-5 px-0">
-                        <div class="card shadow-lg border-0">
-                            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0"><i class="bi bi-code-square me-2"></i>Practice Arena</h5>
+                            let editor;
+                            const defaultCode = {
+                                python: "print('Hello, CodeApt!')\n# Write your code here",
+                                java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, CodeApt!\");\n    }\n}",
+                                cpp: "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, CodeApt!\";\n    return 0;\n}",
+                                c: "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, CodeApt!\\n\");\n    return 0;\n}",
+                                javascript: "console.log('Hello, CodeApt!');"
+                            };
+
+                            require(['vs/editor/editor.main'], function() {
+                                editor = monaco.editor.create(document.getElementById('editor'), {
+                                    value: defaultCode['python'],
+                                    language: 'python',
+                                    theme: 'vs', 
+                                    automaticLayout: true,
+                                    minimap: { enabled: false },
+                                    scrollBeyondLastLine: false,
+                                    fontSize: 14
+                                });
+
+                                document.getElementById('languageSelect').addEventListener('change', function(e) {
+                                    const lang = e.target.value;
+                                    monaco.editor.setModelLanguage(editor.getModel(), lang);
+                                    editor.setValue(defaultCode[lang]);
+                                });
+                            });
+
+                            function runCode() {
+                                const runBtn = document.getElementById('runBtn');
+                                const outputDiv = document.getElementById('output');
+                                const code = editor.getValue();
+                                const language = document.getElementById('languageSelect').value;
+                                const input = document.getElementById('customInput').value;
+
+                                runBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+                                runBtn.disabled = true;
+                                outputDiv.innerText = "Executing...";
+
+                                fetch('/run_code/', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': '{{ csrf_token }}'
+                                    },
+                                    body: JSON.stringify({ code: code, language: language, input: input })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    outputDiv.innerText = data.output;
+                                    runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
+                                    runBtn.disabled = false;
+                                })
+                                .catch(error => {
+                                    outputDiv.innerText = "Error: " + error;
+                                    runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
+                                    runBtn.disabled = false;
+                                });
+                            }
+                        </script>
+
+                        <script>
+                            function toggleCompletion() {
+                                const btn = document.getElementById('mark-complete-btn');
+                                const url = "{% url 'toggle_progress' topic.id %}";
                                 
-                                <select id="languageSelect" class="form-select form-select-sm w-auto bg-secondary text-white border-0">
-                                    <option value="python">Python</option>
-                                    <option value="java">Java</option>
-                                    <option value="cpp">C++</option>
-                                    <option value="c">C</option>
-                                    <option value="javascript">JavaScript</option>
-                                </select>
-                            </div>
-                            
-                            <div class="card-body p-0">
-                                <div class="row g-0">
-                                    <div class="col-md-8 border-end">
-                                        <div id="editor" class="bg-white" style="height: 500px; width: 100%;"></div>
-                                    </div>
-                                    
-                                    <div class="col-md-4 bg-light d-flex flex-column">
-                                        <div class="p-2 bg-secondary text-white small fw-bold">Input (Stdin)</div>
-                                        <textarea id="customInput" class="form-control border-0 rounded-0 bg-white" rows="3" placeholder="Enter input here..."></textarea>
-                                        
-                                        <div class="p-2 bg-secondary text-white small fw-bold mt-auto">Output</div>
-                                        <pre id="output" class="flex-grow-1 p-3 m-0 bg-dark text-success font-monospace" style="overflow-y: auto; white-space: pre-wrap;">Run your code to see output...</pre>
-                                        
-                                        <div class="p-3 bg-white border-top">
-                                            <button onclick="runCode()" id="runBtn" class="btn btn-success w-100 fw-bold">
-                                                <i class="bi bi-play-fill"></i> Run Code
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                                btn.innerHTML = 'Saving... <span class="spinner-border spinner-border-sm ms-2"></span>';
+                                btn.disabled = true;
 
-                    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
-                    <script>
-                        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+                                fetch(url, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRFToken': '{{ csrf_token }}',
+                                        'Content-Type': 'application/json'
+                                    },
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.status === 'success') {
+                                        if (data.is_completed) {
+                                            btn.classList.remove('btn-outline-success');
+                                            btn.classList.add('btn-success');
+                                            btn.innerHTML = 'Completed <i class="bi bi-check-circle-fill ms-2"></i>';
+                                        } else {
+                                            btn.classList.remove('btn-success');
+                                            btn.classList.add('btn-outline-success');
+                                            btn.innerHTML = 'Mark as Complete <i class="bi bi-check-circle ms-2"></i>';
+                                        }
+                                    }
+                                    btn.disabled = false;
+                                })
+                                .catch(error => {
+                                    console.error('Error:', error);
+                                    btn.innerHTML = 'Error!';
+                                });
+                            }
+                        </script>
 
-                        let editor;
-                        const defaultCode = {
-                            python: "print('Hello, CodeApt!')\n# Write your code here",
-                            java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, CodeApt!\");\n    }\n}",
-                            cpp: "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, CodeApt!\";\n    return 0;\n}",
-                            c: "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, CodeApt!\\n\");\n    return 0;\n}", // ADDED THIS LINE
-                            javascript: "console.log('Hello, CodeApt!');"
-                        };
-
-                        require(['vs/editor/editor.main'], function() {
-                            editor = monaco.editor.create(document.getElementById('editor'), {
-                                value: defaultCode['python'],
-                                language: 'python',
-                                theme: 'vs', // <--- FIXED: Set to 'vs' (Light Theme)
-                                automaticLayout: true,
-                                minimap: { enabled: false },
-                                scrollBeyondLastLine: false,
-                                fontSize: 14
-                            });
-
-                            document.getElementById('languageSelect').addEventListener('change', function(e) {
-                                const lang = e.target.value;
-                                monaco.editor.setModelLanguage(editor.getModel(), lang);
-                                editor.setValue(defaultCode[lang]);
-                            });
-                        });
-
-                        function runCode() {
-                            const runBtn = document.getElementById('runBtn');
-                            const outputDiv = document.getElementById('output');
-                            const code = editor.getValue();
-                            const language = document.getElementById('languageSelect').value;
-                            const input = document.getElementById('customInput').value;
-
-                            runBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
-                            runBtn.disabled = true;
-                            outputDiv.innerText = "Executing...";
-
-                            fetch('/run_code/', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRFToken': '{{ csrf_token }}'
-                                },
-                                body: JSON.stringify({ code: code, language: language, input: input })
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                outputDiv.innerText = data.output;
-                                runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
-                                runBtn.disabled = false;
-                            })
-                            .catch(error => {
-                                outputDiv.innerText = "Error: " + error;
-                                runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
-                                runBtn.disabled = false;
-                            });
-                        }
-                    </script>
-
-
-                    <div class="mt-5 pt-4 border-top d-flex justify-content-between">
-                        <a href="{% url 'course_detail' subject.slug %}" class="btn btn-outline-secondary px-4">
-                            <i class="bi bi-arrow-left me-2"></i> Back to Course
-                        </a>
-                        
-                        <button id="mark-complete-btn" 
-                                class="btn {% if is_completed %}btn-success{% else %}btn-outline-success{% endif %} px-4" 
-                                onclick="toggleCompletion()">
-                            {% if is_completed %}
-                                Completed <i class="bi bi-check-circle-fill ms-2"></i>
-                            {% else %}
-                                Mark as Complete <i class="bi bi-check-circle ms-2"></i>
-                            {% endif %}
-                        </button>
-                    </div>
-
-                </div>
+                    {% endif %} </div>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-    function toggleCompletion() {
-        const btn = document.getElementById('mark-complete-btn');
-        const url = "{% url 'toggle_progress' topic.id %}";
-        
-        btn.innerHTML = 'Saving... <span class="spinner-border spinner-border-sm ms-2"></span>';
-        btn.disabled = true;
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
-            },
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                if (data.is_completed) {
-                    btn.classList.remove('btn-outline-success');
-                    btn.classList.add('btn-success');
-                    btn.innerHTML = 'Completed <i class="bi bi-check-circle-fill ms-2"></i>';
-                } else {
-                    btn.classList.remove('btn-success');
-                    btn.classList.add('btn-outline-success');
-                    btn.innerHTML = 'Mark as Complete <i class="bi bi-check-circle ms-2"></i>';
-                }
-            }
-            btn.disabled = false;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            btn.innerHTML = 'Error!';
-        });
-    }
-</script>
 {% endblock %}

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-5">
+    
+    <div class="card border-0 shadow-lg mb-4 overflow-hidden">
+        <div class="card-body p-5 text-center {% if attempt.passed %}bg-success bg-opacity-10{% else %}bg-danger bg-opacity-10{% endif %}">
+            <h2 class="fw-bold mb-3">{{ attempt.exam.topic.name }}</h2>
+            
+            <div class="row justify-content-center mt-4">
+                <div class="col-md-3">
+                    <div class="display-4 fw-bold {% if attempt.passed %}text-success{% else %}text-danger{% endif %}">
+                        {{ attempt.score }} / {{ attempt.exam.total_marks }}
+                    </div>
+                    <div class="text-muted text-uppercase small fw-bold mt-2">Total Score</div>
+                </div>
+                <div class="col-md-3 border-start">
+                    <div class="display-4 fw-bold">
+                        {% if attempt.passed %}Passed{% else %}Failed{% endif %}
+                    </div>
+                    <div class="text-muted text-uppercase small fw-bold mt-2">Result</div>
+                </div>
+                <div class="col-md-3 border-start">
+                    <div class="display-4 fw-bold">{{ attempt.warnings_triggered }}</div>
+                    <div class="text-muted text-uppercase small fw-bold mt-2">Warnings</div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <a href="{% url 'exam_history' %}" class="btn btn-outline-dark">Back to History</a>
+                <a href="{% url 'course_detail' attempt.exam.topic.module.subject.slug %}" class="btn btn-primary ms-2">Back to Course</a>
+            </div>
+        </div>
+    </div>
+
+    <h4 class="fw-bold mb-3">Detailed Analysis</h4>
+    
+    <div class="d-flex flex-column gap-4">
+        {% for item in report %}
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">Q{{ forloop.counter }}. {{ item.type }}</span>
+                    <span class="badge bg-light text-dark border">{{ item.question.marks }} Marks</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <h5 class="card-title mb-3">{{ item.question.text }}</h5>
+
+                {% if item.type == 'CODE' %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <label class="small text-muted fw-bold">Your Code Attempt:</label>
+                            <div class="bg-dark text-white p-3 rounded font-monospace small" style="white-space: pre-wrap;">{{ item.user_answer }}</div>
+                        </div>
+                    </div>
+
+                {% else %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded {% if item.is_correct %}bg-success bg-opacity-10 border-success{% else %}bg-danger bg-opacity-10 border-danger{% endif %}">
+                                <small class="text-muted d-block fw-bold mb-1">Your Answer:</small>
+                                <span class="fw-bold">{{ item.user_answer }}</span>
+                                {% if item.is_correct %}
+                                    <i class="bi bi-check-circle-fill text-success float-end"></i>
+                                {% else %}
+                                    <i class="bi bi-x-circle-fill text-danger float-end"></i>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light">
+                                <small class="text-muted d-block fw-bold mb-1">Correct Answer:</small>
+                                <span class="fw-bold text-success">{{ item.correct_answer }}</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

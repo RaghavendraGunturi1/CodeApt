@@ -180,6 +180,21 @@
                 </a>
             </div>
         {% endif %}
+        <h4 class="fw-bold mb-4">Your Mock Attempts</h4>
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0 h-100 hover-shadow">
+                <div class="card-body p-4 text-center">
+                    <div class="icon-circle bg-danger bg-opacity-10 text-danger mb-3 mx-auto" style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-clipboard-data fs-3"></i>
+                    </div>
+                    <h5 class="fw-bold">Mock Exams</h5>
+                    <p class="text-muted small">View your past exam results, scores, and detailed analysis reports.</p>
+                    <a href="{% url 'exam_history' %}" class="btn btn-outline-danger w-100 fw-bold mt-2">
+                        View History <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
         {% if my_applications %}
         <div class="row mt-5">
             <div class="col-12">

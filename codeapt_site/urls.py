@@ -7,4 +7,5 @@ urlpatterns = [
     path('', include('core.urls')),  # Connect core urls
     path('accounts/', include('accounts.urls')), # NEW LINE
     path('challenges/', include('challenges.urls')),
+    path('assessments/', include('assessments.urls')),  # NEW LINE for assessments app
 ]

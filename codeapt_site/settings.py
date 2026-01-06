@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     # Add these two:
     'cloudinary_storage',
     'cloudinary',
+    'assessments',
     
 ]
 

@@ -46,11 +46,12 @@ class Topic(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='topics')
     name = models.CharField(max_length=200) # e.g., "Lists & Tuples"
     module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='topics', null=True, blank=True)
-    order = models.PositiveIntegerField(default=0)
+    order = models.FloatField(help_text="Use decimals (e.g., 1.5) to insert between topics")
     TOPIC_TYPES = (
         ('text', 'Text Article'),
         ('video', 'Video Lesson'),
         ('quiz', 'Quiz'),
+        ('exam', 'Mock Exam'),
     )
     topic_type = models.CharField(max_length=10, choices=TOPIC_TYPES, default='text')
     

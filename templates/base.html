@@ -120,20 +120,17 @@
     
     {% if request.resolver_match.url_name != 'arena' %}
     <script>
-        // 1. Disable Right Click
-        document.addEventListener('contextmenu', function (e) {
-            e.preventDefault();
-        });
-
-        // 2. Disable Keyboard Shortcuts (F12, Ctrl+Shift+I, Ctrl+U)
+        document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
         document.onkeydown = function (e) {
-            if (e.keyCode == 123) return false; // F12
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; // Inspect
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false; // Inspect Element
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; // Console
-            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; // View Source
+            if (e.keyCode == 123) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
+            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
         };
     </script>
     {% endif %}
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>
