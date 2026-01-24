@@ -1,6 +1,6 @@
 # build_files.sh
 echo "Building the project..."
-python3.12 -m pip install -r requirements.txt
+python3.12 -m pip install -r requirements.txt --break-system-packages
 
 echo "Make Migrations..."
 python3.12 manage.py migrate --noinput
