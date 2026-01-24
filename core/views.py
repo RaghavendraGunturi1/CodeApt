@@ -380,16 +380,16 @@ def placements(request):
                 'college': 'SRIT, Anantapur'
             },
             {
-                'company': 'Infosys',
-                'count': '92',
-                'subtext': 'Selections from a Single Group',
-                'college': 'KITS Group, Guntur'
-            },
-            {
                 'company': 'Cognizant',
                 'count': '100+',
                 'subtext': 'Selections from a Single College',
                 'college': 'SRIT Anantapur'
+            },
+            {
+                'company': 'Infosys',
+                'count': '92',
+                'subtext': 'Selections from a Single Group',
+                'college': 'KITS Group, Guntur'
             },
             {
                 'company': 'Cognizant (CTS)',
