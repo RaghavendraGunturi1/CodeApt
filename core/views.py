@@ -368,16 +368,22 @@ def placements(request):
                 'college': 'Malla Reddy Engg. College for Women (MRECW)'
             },
             {
-                'company': 'Infosys',
-                'count': '92',
-                'subtext': 'Selections from a Single Group',
-                'college': 'KITS Group, Guntur'
-            },
-            {
                 'company': 'Accenture',
                 'count': '196',
                 'subtext': 'Selections from a Single College',
                 'college': 'ACE Engineering College'
+            },
+            {
+                'company': 'TCS NQT',
+                'count': '103',
+                'subtext': 'Selections from a Single College',
+                'college': 'SRIT, Anantapur'
+            },
+            {
+                'company': 'Infosys',
+                'count': '92',
+                'subtext': 'Selections from a Single Group',
+                'college': 'KITS Group, Guntur'
             },
             {
                 'company': 'Cognizant',
