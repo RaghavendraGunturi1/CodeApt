@@ -5,7 +5,7 @@
     <div class="text-center text-white">
         <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 5rem;"></i>
         <h2 class="fw-bold mt-4">Exam Paused</h2>
-        <p class="lead">You exited full-screen mode.</p>
+        <p class="lead">Full-screen mode is required.</p>
         <button onclick="returnToFullscreen()" class="btn btn-primary btn-lg fw-bold mt-3">Resume Exam</button>
     </div>
 </div>
@@ -23,14 +23,14 @@
                 <i class="bi bi-stopwatch"></i> <span id="timer">Loading...</span>
             </div>
             <button onclick="finishSection()" class="btn btn-success fw-bold btn-sm">
-                Save & Next Section <i class="bi bi-chevron-right"></i>
+                {% if is_last_section %}Submit Exam{% else %}Save & Next Section{% endif %} <i class="bi bi-chevron-right"></i>
             </button>
         </div>
     </div>
 
     <div class="d-flex h-100">
         
-        <div class="bg-white border-end d-none d-md-block" style="width: 260px;">
+        <div class="bg-white border-end d-none d-md-block" style="width: 260px; overflow-y: auto;">
             <div class="p-3 bg-light border-bottom fw-bold text-uppercase small text-muted">
                 Exam Sections ({{ current_section_index }}/{{ total_sections }})
             </div>
@@ -49,7 +49,7 @@
                     {% if sec.order < section.order %}
                         <i class="bi bi-check-circle-fill fs-5"></i>
                     {% elif sec.id == section.id %}
-                        <div class="spinner-grow spinner-grow-sm" role="status"></div>
+                        <div class="spinner-grow spinner-grow-sm" role="status" style="width: 1rem; height: 1rem;"></div>
                     {% else %}
                         <i class="bi bi-lock-fill fs-5 opacity-50"></i>
                     {% endif %}
@@ -67,30 +67,31 @@
                         <span class="badge bg-secondary">{{ q.marks }} Marks</span>
                     </div>
                     <div class="card-body p-4">
+                        
                         {% if q.text %}
                             <h5 class="fw-bold mb-3" style="white-space: pre-wrap;">{{ q.text }}</h5>
                         {% endif %}
 
                         {% if q.image %}
                             <div class="mb-4 text-center">
-                                <img src="{{ q.image.url }}" class="img-fluid rounded border shadow-sm" style="max-height: 300px;" alt="Question Diagram">
+                                <img src="{{ q.image.url }}" class="img-fluid rounded border shadow-sm" style="max-height: 300px;">
                             </div>
                         {% endif %}
 
                         {% if q.q_type == 'MCQ_SINGLE' %}
                             <div class="d-flex flex-column gap-2">
-                                {% if q.option_1 %}<label class="p-3 border rounded hover-shadow cursor-pointer"><input class="form-check-input me-2" type="radio" name="q_{{q.id}}" value="1" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
-                                {% if q.option_2 %}<label class="p-3 border rounded hover-shadow cursor-pointer"><input class="form-check-input me-2" type="radio" name="q_{{q.id}}" value="2" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
-                                {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer"><input class="form-check-input me-2" type="radio" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
-                                {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer"><input class="form-check-input me-2" type="radio" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
+                                {% if q.option_1 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="1" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
+                                {% if q.option_2 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="2" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
+                                {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
+                                {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
                             </div>
 
                         {% elif q.q_type == 'MCQ_MULTI' %}
                             <div class="d-flex flex-column gap-2">
-                                {% if q.option_1 %}<label class="p-3 border rounded hover-shadow cursor-pointer"><input class="form-check-input me-2" type="checkbox" name="q_{{q.id}}" value="1" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
-                                {% if q.option_2 %}<label class="p-3 border rounded hover-shadow cursor-pointer"><input class="form-check-input me-2" type="checkbox" name="q_{{q.id}}" value="2" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
-                                {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer"><input class="form-check-input me-2" type="checkbox" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
-                                {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer"><input class="form-check-input me-2" type="checkbox" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
+                                {% if q.option_1 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="1" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
+                                {% if q.option_2 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="2" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
+                                {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
+                                {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
                             </div>
 
                         {% elif q.q_type == 'CODE' %}
@@ -102,10 +103,10 @@
                                     <div class="col-md-4 bg-light d-flex flex-column">
                                         <div class="p-2 bg-secondary text-white small fw-bold">Test Area</div>
                                         <textarea id="input_{{q.id}}" class="form-control border-0 rounded-0" rows="3" placeholder="Input"></textarea>
-                                        <pre id="output_{{q.id}}" class="flex-grow-1 p-2 m-0 bg-dark text-success small font-monospace" style="height: 100px;">Ready.</pre>
+                                        <pre id="output_{{q.id}}" class="flex-grow-1 p-2 m-0 bg-dark text-success small font-monospace" style="height: 100px; overflow-y: auto;">Ready.</pre>
                                         <div class="p-2 d-flex gap-2">
                                             <select id="lang_{{q.id}}" class="form-select form-select-sm"><option value="python">Python</option></select>
-                                            <button type="button" onclick="runCustomCode('{{q.id}}')" class="btn btn-sm btn-dark">Run</button>
+                                            <button type="button" onclick="runCustomCode('{{q.id}}')" class="btn btn-sm btn-dark flex-grow-1">Run</button>
                                         </div>
                                     </div>
                                 </div>
@@ -130,6 +131,10 @@
                     <button onclick="jumpToQuestion({{ forloop.counter0 }})" id="palette_btn_{{ forloop.counter0 }}" class="btn btn-outline-secondary btn-sm fw-bold palette-btn">{{ forloop.counter }}</button>
                     {% endfor %}
                 </div>
+                <hr>
+                <div class="d-grid gap-2">
+                     <button onclick="clearResponse()" class="btn btn-outline-danger btn-sm"><i class="bi bi-eraser"></i> Clear Answer</button>
+                </div>
             </div>
         </div>
     </div>
@@ -151,39 +156,144 @@
 
 <style>
     .hover-shadow:hover { background-color: #f8f9fa; }
+    .cursor-pointer { cursor: pointer; }
     .palette-btn.active { border: 2px solid #0d6efd !important; color: #0d6efd !important; }
     .palette-btn.answered { background-color: #198754 !important; color: white !important; border-color: #198754; }
 </style>
 {% endblock %}
-
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+
 <script>
     // --- VARIABLES ---
-    let timeLeft = {{ time_left }}; // From Backend (Seconds remaining for THIS section)
+    let timeLeft = {{ time_left }}; 
     const TOTAL_QUESTIONS = {{ questions|length }};
+    const MAX_WARNINGS = 2; 
+    
     let currentQuestionIndex = 0;
     let answeredQuestions = new Set();
     let examEditors = {};
     let timerInterval;
-    let isTransitioning = false;
+    
+    // State Flags
+    let isTransitioning = false; 
+    let warningCount = 0;
+    let isReloading = false; 
+
+    // --- INIT ---
+    let storedWarnings = sessionStorage.getItem('section_warnings');
+    if (storedWarnings) warningCount = parseInt(storedWarnings);
 
     // --- 1. ENTER EXAM ---
     function enterExam() {
-        // Fullscreen Logic (Strict)
+        // 1. Set Guard: Ignore checks for 3 seconds while browser animates
+        isTransitioning = true;
+        
         const elem = document.documentElement;
         const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-        if(req) req.call(elem).catch(console.warn);
+        
+        if(req) {
+            req.call(elem).then(() => {
+                // Success
+            }).catch(err => {
+                console.warn("FS Request error:", err);
+            });
+        }
 
+        // 2. Force UI Update Immediately
         document.getElementById('start-modal').style.display = 'none';
         document.getElementById('exam-container').style.display = 'block';
-        
+        hideOverlay();
+
         initMonaco();
         startTimer();
         showQuestion(0);
+
+        // 3. Remove Guard after 3 seconds
+        setTimeout(() => { isTransitioning = false; checkFullscreenStatus(); }, 3000);
     }
 
-    // --- 2. TIMER ---
+    // --- 2. STRICT FULLSCREEN CHECK ---
+    function isFullscreen() {
+        // STRICT: Only trust the Browser API. 
+        // We REMOVED the dimension check because it allowed "Maximized Windows" (Esc key).
+        return document.fullscreenElement || 
+               document.webkitFullscreenElement || 
+               document.mozFullScreenElement || 
+               document.msFullscreenElement;
+    }
+
+    function checkFullscreenStatus() {
+        if (isTransitioning) return; // Don't interrupt if we are switching
+
+        if (!isFullscreen()) {
+            showOverlay();
+        } else {
+            hideOverlay();
+        }
+    }
+
+    function showOverlay() {
+        const overlay = document.getElementById('fullscreen-overlay');
+        const container = document.getElementById('exam-container');
+        if (overlay.style.display !== 'flex') {
+            overlay.style.display = 'flex';
+            container.style.filter = "blur(10px)";
+        }
+    }
+
+    function hideOverlay() {
+        const overlay = document.getElementById('fullscreen-overlay');
+        const container = document.getElementById('exam-container');
+        if(overlay) overlay.style.setProperty('display', 'none', 'important');
+        if(container) container.style.filter = "none";
+    }
+
+    function returnToFullscreen() {
+        isTransitioning = true; 
+        const elem = document.documentElement;
+        const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
+        if(req) req.call(elem).catch(() => {});
+        
+        // Trust user immediately
+        hideOverlay();
+        
+        // Re-enable checks after 3s
+        setTimeout(() => { isTransitioning = false; }, 3000);
+    }
+
+    // --- LISTENERS ---
+    document.addEventListener("fullscreenchange", checkFullscreenStatus);
+    document.addEventListener("webkitfullscreenchange", checkFullscreenStatus);
+    document.addEventListener("mozfullscreenchange", checkFullscreenStatus);
+    document.addEventListener("MSFullscreenChange", checkFullscreenStatus);
+    
+    // Aggressive Poll (Every 0.5s) - Essential for catching ESC quickly
+    setInterval(() => {
+        if (document.getElementById('exam-container').style.display === 'block') {
+            checkFullscreenStatus();
+        }
+    }, 500);
+
+
+    // --- 3. WARNING SYSTEM (TAB SWITCHING) ---
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden && !isReloading && document.getElementById('exam-container').style.display === 'block') {
+            warningCount++;
+            sessionStorage.setItem('section_warnings', warningCount);
+            
+            alert(`WARNING ${warningCount}/${MAX_WARNINGS}: You switched tabs! This is prohibited.`);
+            
+            if (warningCount > MAX_WARNINGS) {
+                alert("Maximum warnings exceeded. Auto-submitting section.");
+                finishSection(true);
+            }
+        }
+    });
+
+    window.addEventListener("beforeunload", () => { isReloading = true; });
+
+    // --- 4. TIMER & LOGIC ---
     function startTimer() {
         if(timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(() => {
@@ -192,54 +302,60 @@
             let s = timeLeft % 60;
             document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
             
-            if (timeLeft <= 0) {
-                finishSection(true); // Auto-submit when time for SECTION ends
-            }
+            if (timeLeft <= 0) finishSection(true); 
         }, 1000);
     }
 
-    // --- 3. SUBMIT SECTION ---
     function finishSection(auto = false) {
+        isReloading = true; 
         clearInterval(timerInterval);
-        if(!auto && !confirm("Are you sure? You cannot return to this section once submitted.")) {
-            startTimer(); // Resume if cancelled
+        
+        if(!auto && !confirm("Finish this section? You cannot go back.")) {
+            isReloading = false; 
+            startTimer(); 
             return;
         }
 
-        // Gather Data
+        // Collect Answers
         let answers = {};
         const formData = new FormData(document.getElementById('examForm'));
         for (let [key, value] of formData.entries()) {
-            if (key.startsWith('q_')) answers[key.replace('q_', '')] = value;
+            if (key.startsWith('q_')) {
+                let qId = key.replace('q_', '');
+                if (answers[qId]) {
+                    if (Array.isArray(answers[qId])) answers[qId].push(value);
+                    else answers[qId] = [answers[qId], value];
+                } else { answers[qId] = value; }
+            }
         }
         
-        // Gather Code
+        // Collect Code
         for (let [qId, editor] of Object.entries(examEditors)) {
             answers[qId] = { 'code': editor.getValue(), 'language': document.getElementById(`lang_${qId}`).value };
         }
 
-        // Post to Backend
+        // Submit
         fetch("{% url 'submit_section' attempt.id %}", {
             method: 'POST',
             headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
-            body: JSON.stringify({ answers: answers })
+            body: JSON.stringify({ answers: answers, warnings: warningCount })
         })
         .then(res => res.json())
         .then(data => {
             if(data.status === 'next_section' || data.status === 'finished') {
+                sessionStorage.removeItem('section_warnings');
                 window.location.href = data.redirect_url;
             }
         });
     }
 
-    // --- 4. NAVIGATION & PALETTE ---
+    // --- 5. NAVIGATION ---
     function showQuestion(index) {
         document.querySelectorAll('.question-card').forEach(el => el.style.display = 'none');
         const target = document.getElementById(`q_card_${index}`);
         if(target) {
             target.style.display = 'block';
             currentQuestionIndex = index;
-            // Monaco Layout Fix
             const codeBlock = target.querySelector('[data-is-code="true"]');
             if(codeBlock) {
                 const qId = codeBlock.getAttribute('data-qid');
@@ -268,12 +384,17 @@
         }
     }
     
-    function markAnswered(index) {
-        answeredQuestions.add(index);
+    function markAnswered(index) { answeredQuestions.add(index); updatePalette(); }
+    
+    function clearResponse() {
+        const card = document.getElementById(`q_card_${currentQuestionIndex}`);
+        const inputs = card.querySelectorAll('input[type="radio"], input[type="checkbox"]');
+        inputs.forEach(input => input.checked = false);
+        answeredQuestions.delete(currentQuestionIndex);
         updatePalette();
     }
 
-    // --- 5. MONACO ---
+    // --- 6. MONACO ---
     function initMonaco() {
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
         require(['vs/editor/editor.main'], function() {
@@ -295,23 +416,21 @@
         });
     }
 
-    // --- 6. PROCTORING (Simplified) ---
-    function returnToFullscreen() {
-        const elem = document.documentElement;
-        if(elem.requestFullscreen) elem.requestFullscreen();
-        document.getElementById('fullscreen-overlay').style.display = 'none';
-        document.getElementById('exam-container').style.filter = 'none';
+    // --- 7. RUN CODE ---
+    function runCustomCode(qId) {
+        const code = examEditors[qId].getValue();
+        const input = document.getElementById(`input_${qId}`).value;
+        const lang = document.getElementById(`lang_${qId}`).value;
+        const outputBox = document.getElementById(`output_${qId}`);
+        outputBox.innerText = "Running...";
+        
+        fetch('/run_code/', {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+            body: JSON.stringify({ code: code, input: input, language: lang })
+        })
+        .then(res => res.json())
+        .then(data => outputBox.innerText = data.output || data.error || "No Output");
     }
-    
-    document.addEventListener("fullscreenchange", () => {
-        if(!document.fullscreenElement) {
-            document.getElementById('fullscreen-overlay').style.display = 'flex';
-            document.getElementById('exam-container').style.filter = 'blur(10px)';
-        } else {
-            document.getElementById('fullscreen-overlay').style.display = 'none';
-            document.getElementById('exam-container').style.filter = 'none';
-        }
-    });
-
 </script>
 {% endblock %}

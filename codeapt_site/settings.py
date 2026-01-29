@@ -132,11 +132,19 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 # Enable WhiteNoise storage
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
+# NEW CONFIGURATION FOR DJANGO 5+
+STORAGES = {
+    # Media files (Images) -> Use Cloudinary
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    # Static files (CSS/JS) -> Use WhiteNoise
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 import os
@@ -171,5 +179,3 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': 'wBf8ervMT-rczNWSGfNzI9r9Umo'
 }
 
-# Tell Django to use Cloudinary for uploaded media
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

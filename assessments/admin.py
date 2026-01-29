@@ -6,6 +6,7 @@ from .models import Exam, ExamSection, ExamQuestion, ExamTestCase, StudentExamAt
 from .forms import ExamUploadForm
 import pandas as pd
 # Add these imports at the top
+import re  # <--- REQUIRED: Add this import at the top of your file if missing
 import requests
 from django.utils.safestring import mark_safe # <--- IMPORTANT NEW IMPORT
 from django.core.files.base import ContentFile
@@ -46,7 +47,7 @@ class ExamAdmin(admin.ModelAdmin):
                 
                 # Loop through rows
                 for index, row in df.iterrows():
-                    row_num = index + 2  # +2 because Excel header is row 1, and index starts at 0
+                    row_num = index + 2  # +2 because Excel header is row 1
                     
                     # --- VALIDATION 1: TOPIC NAME ---
                     topic_name = str(row.get('topic_name', '')).strip()
@@ -108,11 +109,20 @@ class ExamAdmin(admin.ModelAdmin):
                             starter_code=str(row.get('starter_code', '')).replace('_x000D_', '').strip()
                         )
 
-                        # Handle Image
+                        # --- HANDLE IMAGE (With Google Drive Logic) ---
                         if image_url:
+                            # 1. Auto-Convert Google Drive Links
+                            if "drive.google.com" in image_url:
+                                file_id_match = re.search(r'/d/([a-zA-Z0-9_-]+)', image_url)
+                                if file_id_match:
+                                    file_id = file_id_match.group(1)
+                                    image_url = f'https://drive.google.com/uc?export=download&id={file_id}'
+
+                            # 2. Download and Save
                             try:
                                 response = requests.get(image_url, timeout=10)
                                 if response.status_code == 200:
+                                    # Create a clean filename
                                     file_name = f"question_{q.id}.jpg"
                                     q.image.save(file_name, ContentFile(response.content), save=True)
                                 else:
@@ -120,7 +130,7 @@ class ExamAdmin(admin.ModelAdmin):
                             except Exception as img_err:
                                 errors.append(f"Row {row_num}: Question created, but Image download error: {str(img_err)}")
 
-                        # Handle Code Test Cases
+                        # --- HANDLE TEST CASES ---
                         if q_type == 'CODE':
                             for i in range(1, 6):
                                 inp = str(row.get(f'input{i}', '')).replace('_x000D_', '').strip()
@@ -138,17 +148,12 @@ class ExamAdmin(admin.ModelAdmin):
                     messages.success(request, f"Successfully uploaded {success_count} questions.")
                 
                 if errors:
-                    # Format errors as an HTML list
-                    error_html = "<strong>Some rows were skipped:</strong><br><ul style='margin-bottom:0;'>"
-                    # Limit to showing first 15 errors to prevent huge popups
+                    error_html = "<strong>Some rows were skipped or had warnings:</strong><br><ul style='margin-bottom:0;'>"
                     for err in errors[:15]:
                         error_html += f"<li>{err}</li>"
-                    
                     if len(errors) > 15:
                         error_html += f"<li>...and {len(errors) - 15} more errors.</li>"
                     error_html += "</ul>"
-                    
-                    # Use mark_safe to allow HTML rendering in the message
                     messages.warning(request, mark_safe(error_html))
                 
                 return redirect("..")
@@ -159,7 +164,7 @@ class ExamAdmin(admin.ModelAdmin):
 
         form = ExamUploadForm()
         return render(request, "admin/exam_upload.html", {"form": form})
-
+        
 # 3. Register Section Admin (Optional, but useful)
 @admin.register(ExamSection)
 class ExamSectionAdmin(admin.ModelAdmin):
