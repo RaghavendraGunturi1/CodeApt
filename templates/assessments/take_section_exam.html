@@ -5,7 +5,7 @@
     <div class="text-center text-white">
         <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 5rem;"></i>
         <h2 class="fw-bold mt-4">Exam Paused</h2>
-        <p class="lead">Full-screen mode is required.</p>
+        <p class="lead">Full-screen mode is required to continue.</p>
         <button onclick="returnToFullscreen()" class="btn btn-primary btn-lg fw-bold mt-3">Resume Exam</button>
     </div>
 </div>
@@ -22,8 +22,12 @@
             <div class="fs-5 fw-bold text-warning font-monospace">
                 <i class="bi bi-stopwatch"></i> <span id="timer">Loading...</span>
             </div>
-            <button onclick="finishSection()" class="btn btn-success fw-bold btn-sm">
-                {% if is_last_section %}Submit Exam{% else %}Save & Next Section{% endif %} <i class="bi bi-chevron-right"></i>
+            <button id="submit-btn" type="button" onclick="finishSection()" class="btn btn-success fw-bold btn-sm">
+                {% if is_last_section %}
+                    Submit Exam <i class="bi bi-check-circle-fill"></i>
+                {% else %}
+                    Save & Next Section <i class="bi bi-chevron-right"></i>
+                {% endif %}
             </button>
         </div>
     </div>
@@ -161,8 +165,19 @@
     .palette-btn.answered { background-color: #198754 !important; color: white !important; border-color: #198754; }
 </style>
 {% endblock %}
+
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
+
+<script>
+    const CODE_DATA = {
+        {% for q in questions %}
+            {% if q.q_type == 'CODE' %}
+                "{{q.id}}": "{{ q.starter_code|default:''|escapejs }}",
+            {% endif %}
+        {% endfor %}
+    };
+</script>
 
 <script>
     // --- VARIABLES ---
@@ -172,13 +187,15 @@
     
     let currentQuestionIndex = 0;
     let answeredQuestions = new Set();
-    let examEditors = {};
+    let examEditors = {}; 
     let timerInterval;
+    let monacoReady = false; 
     
     // State Flags
     let isTransitioning = false; 
     let warningCount = 0;
-    let isReloading = false; 
+    let isReloading = false;
+    let lastWarningTime = 0; // For debouncing
 
     // --- INIT ---
     let storedWarnings = sessionStorage.getItem('section_warnings');
@@ -186,181 +203,108 @@
 
     // --- 1. ENTER EXAM ---
     function enterExam() {
-        // 1. Set Guard: Ignore checks for 3 seconds while browser animates
         isTransitioning = true;
-        
         const elem = document.documentElement;
         const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-        
-        if(req) {
-            req.call(elem).then(() => {
-                // Success
-            }).catch(err => {
-                console.warn("FS Request error:", err);
-            });
-        }
+        if(req) req.call(elem).catch(err => console.warn("FS Error:", err));
 
-        // 2. Force UI Update Immediately
         document.getElementById('start-modal').style.display = 'none';
         document.getElementById('exam-container').style.display = 'block';
         hideOverlay();
 
-        initMonaco();
+        startMonacoLoader();
         startTimer();
         showQuestion(0);
-
-        // 3. Remove Guard after 3 seconds
+        
         setTimeout(() => { isTransitioning = false; checkFullscreenStatus(); }, 3000);
     }
 
-    // --- 2. STRICT FULLSCREEN CHECK ---
-    function isFullscreen() {
-        // STRICT: Only trust the Browser API. 
-        // We REMOVED the dimension check because it allowed "Maximized Windows" (Esc key).
-        return document.fullscreenElement || 
-               document.webkitFullscreenElement || 
-               document.mozFullScreenElement || 
-               document.msFullscreenElement;
-    }
-
-    function checkFullscreenStatus() {
-        if (isTransitioning) return; // Don't interrupt if we are switching
-
-        if (!isFullscreen()) {
-            showOverlay();
-        } else {
-            hideOverlay();
-        }
-    }
-
-    function showOverlay() {
-        const overlay = document.getElementById('fullscreen-overlay');
-        const container = document.getElementById('exam-container');
-        if (overlay.style.display !== 'flex') {
-            overlay.style.display = 'flex';
-            container.style.filter = "blur(10px)";
-        }
-    }
-
-    function hideOverlay() {
-        const overlay = document.getElementById('fullscreen-overlay');
-        const container = document.getElementById('exam-container');
-        if(overlay) overlay.style.setProperty('display', 'none', 'important');
-        if(container) container.style.filter = "none";
-    }
-
-    function returnToFullscreen() {
-        isTransitioning = true; 
-        const elem = document.documentElement;
-        const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-        if(req) req.call(elem).catch(() => {});
+    // --- 2. WARNING SYSTEM (STRICT) ---
+    function triggerWarning(reason) {
+        // 1. Check if exam is active and not currently submitting
+        if (isReloading || document.getElementById('exam-container').style.display !== 'block') return;
         
-        // Trust user immediately
-        hideOverlay();
+        // 2. Cooldown Check (Prevent double warnings for the same action)
+        const now = Date.now();
+        if (now - lastWarningTime < 1000) return; // Ignore if warning triggered < 1s ago
+        lastWarningTime = now;
+
+        // 3. Increment Warning
+        warningCount++;
+        sessionStorage.setItem('section_warnings', warningCount);
         
-        // Re-enable checks after 3s
-        setTimeout(() => { isTransitioning = false; }, 3000);
+        alert(`WARNING ${warningCount}/${MAX_WARNINGS}: ${reason}`);
+        
+        if (warningCount > MAX_WARNINGS) {
+            alert("Maximum warnings exceeded. Auto-submitting section.");
+            finishSection(true);
+        }
     }
 
-    // --- LISTENERS ---
-    document.addEventListener("fullscreenchange", checkFullscreenStatus);
-    document.addEventListener("webkitfullscreenchange", checkFullscreenStatus);
-    document.addEventListener("mozfullscreenchange", checkFullscreenStatus);
-    document.addEventListener("MSFullscreenChange", checkFullscreenStatus);
-    
-    // Aggressive Poll (Every 0.5s) - Essential for catching ESC quickly
-    setInterval(() => {
-        if (document.getElementById('exam-container').style.display === 'block') {
-            checkFullscreenStatus();
-        }
-    }, 500);
-
-
-    // --- 3. WARNING SYSTEM (TAB SWITCHING) ---
+    // A. Tab Switch (Visibility API)
     document.addEventListener("visibilitychange", () => {
-        if (document.hidden && !isReloading && document.getElementById('exam-container').style.display === 'block') {
-            warningCount++;
-            sessionStorage.setItem('section_warnings', warningCount);
-            
-            alert(`WARNING ${warningCount}/${MAX_WARNINGS}: You switched tabs! This is prohibited.`);
-            
-            if (warningCount > MAX_WARNINGS) {
-                alert("Maximum warnings exceeded. Auto-submitting section.");
-                finishSection(true);
-            }
-        }
+        if (document.hidden) triggerWarning("You switched tabs! This is prohibited.");
     });
 
+    // B. App Switch / Focus Loss (Window Blur) - NEW
+    window.addEventListener("blur", () => {
+        triggerWarning("You switched to another application or lost focus!");
+    });
+
+    // Prevent warnings on reload/submit
     window.addEventListener("beforeunload", () => { isReloading = true; });
 
-    // --- 4. TIMER & LOGIC ---
-    function startTimer() {
-        if(timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(() => {
-            timeLeft--;
-            let m = Math.floor(timeLeft / 60);
-            let s = timeLeft % 60;
-            document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-            
-            if (timeLeft <= 0) finishSection(true); 
-        }, 1000);
-    }
 
-    function finishSection(auto = false) {
-        isReloading = true; 
-        clearInterval(timerInterval);
-        
-        if(!auto && !confirm("Finish this section? You cannot go back.")) {
-            isReloading = false; 
-            startTimer(); 
-            return;
-        }
-
-        // Collect Answers
-        let answers = {};
-        const formData = new FormData(document.getElementById('examForm'));
-        for (let [key, value] of formData.entries()) {
-            if (key.startsWith('q_')) {
-                let qId = key.replace('q_', '');
-                if (answers[qId]) {
-                    if (Array.isArray(answers[qId])) answers[qId].push(value);
-                    else answers[qId] = [answers[qId], value];
-                } else { answers[qId] = value; }
-            }
-        }
-        
-        // Collect Code
-        for (let [qId, editor] of Object.entries(examEditors)) {
-            answers[qId] = { 'code': editor.getValue(), 'language': document.getElementById(`lang_${qId}`).value };
-        }
-
-        // Submit
-        fetch("{% url 'submit_section' attempt.id %}", {
-            method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
-            body: JSON.stringify({ answers: answers, warnings: warningCount })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.status === 'next_section' || data.status === 'finished') {
-                sessionStorage.removeItem('section_warnings');
-                window.location.href = data.redirect_url;
-            }
+    // --- 3. MONACO SYSTEM ---
+    function startMonacoLoader() {
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            monacoReady = true;
+            loadEditorForQuestion(currentQuestionIndex);
         });
     }
 
-    // --- 5. NAVIGATION ---
+    function loadEditorForQuestion(index) {
+        if (!monacoReady) return; 
+        const card = document.getElementById(`q_card_${index}`);
+        if (!card) return;
+        const codeBlock = card.querySelector('[data-is-code="true"]');
+        if (!codeBlock) return;
+
+        const qId = codeBlock.getAttribute('data-qid');
+        if (examEditors[qId]) {
+            setTimeout(() => examEditors[qId].layout(), 50); 
+            return;
+        }
+
+        const container = document.getElementById(`editor_${qId}`);
+        if (container) {
+            try {
+                container.innerHTML = ''; 
+                const ed = monaco.editor.create(container, {
+                    value: CODE_DATA[qId] || "",
+                    language: 'python',
+                    theme: 'vs',
+                    minimap: { enabled: false },
+                    automaticLayout: true,
+                    scrollBeyondLastLine: false
+                });
+                examEditors[qId] = ed;
+                ed.onDidChangeModelContent(() => markAnswered(index));
+            } catch (e) {
+                console.error("Editor Create Error:", e);
+            }
+        }
+    }
+
+    // --- 4. NAVIGATION ---
     function showQuestion(index) {
         document.querySelectorAll('.question-card').forEach(el => el.style.display = 'none');
         const target = document.getElementById(`q_card_${index}`);
         if(target) {
             target.style.display = 'block';
             currentQuestionIndex = index;
-            const codeBlock = target.querySelector('[data-is-code="true"]');
-            if(codeBlock) {
-                const qId = codeBlock.getAttribute('data-qid');
-                if(examEditors[qId]) examEditors[qId].layout();
-            }
+            loadEditorForQuestion(index);
         }
         updateButtons();
         updatePalette();
@@ -394,30 +338,9 @@
         updatePalette();
     }
 
-    // --- 6. MONACO ---
-    function initMonaco() {
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
-            {% for q in questions %}
-                {% if q.q_type == 'CODE' %}
-                    let c = document.getElementById('editor_{{q.id}}');
-                    if(c) {
-                        let ed = monaco.editor.create(c, {
-                            value: `{{ q.starter_code|escapejs }}`,
-                            language: 'python',
-                            theme: 'vs',
-                            minimap: {enabled: false}
-                        });
-                        examEditors['{{q.id}}'] = ed;
-                        ed.onDidChangeModelContent(() => markAnswered({{ forloop.counter0 }}));
-                    }
-                {% endif %}
-            {% endfor %}
-        });
-    }
-
-    // --- 7. RUN CODE ---
+    // --- 5. RUN CODE ---
     function runCustomCode(qId) {
+        if(!examEditors[qId]) return;
         const code = examEditors[qId].getValue();
         const input = document.getElementById(`input_${qId}`).value;
         const lang = document.getElementById(`lang_${qId}`).value;
@@ -430,7 +353,120 @@
             body: JSON.stringify({ code: code, input: input, language: lang })
         })
         .then(res => res.json())
-        .then(data => outputBox.innerText = data.output || data.error || "No Output");
+        .then(data => outputBox.innerText = data.output || data.error || "No Output")
+        .catch(err => outputBox.innerText = "Error: " + err);
     }
+
+    // --- 6. TIMER & SUBMISSION ---
+    function startTimer() {
+        if(timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            let m = Math.floor(timeLeft / 60);
+            let s = timeLeft % 60;
+            document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+            if (timeLeft <= 0) finishSection(true); 
+        }, 1000);
+    }
+
+    function finishSection(auto = false) {
+        const btn = document.getElementById('submit-btn');
+        if (btn && btn.disabled && !auto) return; 
+
+        clearInterval(timerInterval);
+        isReloading = true; // IMPORTANT: Prevents warnings during submit
+        
+        if(!auto && !confirm("Finish this section? You cannot go back.")) {
+            isReloading = false; // Re-enable warnings
+            startTimer(); 
+            return;
+        }
+
+        if(btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+        }
+
+        let answers = {};
+        const formData = new FormData(document.getElementById('examForm'));
+        for (let [key, value] of formData.entries()) {
+            if (key.startsWith('q_')) {
+                let qId = key.replace('q_', '');
+                if (answers[qId]) {
+                    if (Array.isArray(answers[qId])) answers[qId].push(value);
+                    else answers[qId] = [answers[qId], value];
+                } else { answers[qId] = value; }
+            }
+        }
+        
+        for (let [qId, editor] of Object.entries(examEditors)) {
+            if(editor) answers[qId] = { 'code': editor.getValue(), 'language': document.getElementById(`lang_${qId}`).value };
+        }
+
+        fetch("{% url 'submit_section' attempt.id %}", {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+            body: JSON.stringify({ answers: answers, warnings: warningCount })
+        })
+        .then(res => {
+            if(!res.ok) throw new Error("Network response was not ok");
+            return res.json();
+        })
+        .then(data => {
+            if(data.status === 'next_section' || data.status === 'finished') {
+                sessionStorage.removeItem('section_warnings');
+                window.location.href = data.redirect_url;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Submission failed. Check connection.");
+            isReloading = false;
+            if(btn) { btn.disabled = false; btn.innerText = "Retry Submit"; }
+        });
+    }
+
+    // --- 7. FULLSCREEN ---
+    function isFullscreen() {
+        return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+    }
+
+    function checkFullscreenStatus() {
+        if (isTransitioning) return;
+        if (!isFullscreen()) showOverlay();
+        else hideOverlay();
+    }
+
+    function showOverlay() {
+        const overlay = document.getElementById('fullscreen-overlay');
+        const container = document.getElementById('exam-container');
+        if (overlay.style.display !== 'flex') {
+            overlay.style.display = 'flex';
+            container.style.filter = "blur(10px)";
+        }
+    }
+
+    function hideOverlay() {
+        const overlay = document.getElementById('fullscreen-overlay');
+        const container = document.getElementById('exam-container');
+        if(overlay) overlay.style.setProperty('display', 'none', 'important');
+        if(container) container.style.filter = "none";
+    }
+
+    function returnToFullscreen() {
+        isTransitioning = true; 
+        const elem = document.documentElement;
+        const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
+        if(req) req.call(elem).catch(() => {});
+        hideOverlay();
+        setTimeout(() => { isTransitioning = false; }, 3000);
+    }
+
+    document.addEventListener("fullscreenchange", checkFullscreenStatus);
+    document.addEventListener("webkitfullscreenchange", checkFullscreenStatus);
+    setInterval(() => {
+        if (document.getElementById('exam-container').style.display === 'block') checkFullscreenStatus();
+    }, 500);
+
 </script>
 {% endblock %}

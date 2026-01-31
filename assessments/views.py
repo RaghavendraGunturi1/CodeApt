@@ -22,42 +22,45 @@ def run_code_piston(code, lang, stdin):
 
 # --- VIEWS ---
 
+# In assessments/views.py
+
 @login_required
 def start_exam(request, topic_id):
     topic = get_object_or_404(Topic, id=topic_id)
-    # Access exam safely
     try:
         exam = topic.exam
     except Exam.DoesNotExist:
         return render(request, 'error.html', {'message': 'No exam found for this topic.'})
 
-    # Get or Create Attempt
     attempt, created = StudentExamAttempt.objects.get_or_create(
         user=request.user, 
         exam=exam,
         completed_at__isnull=True 
     )
 
-    # 1. Initialize Section (if new or lost state)
+    # 1. Initialize Section if needed
     if created or not attempt.current_section:
-        first_section = exam.sections.first() # Relies on Meta ordering=['order']
+        first_section = exam.sections.order_by('order').first()
         if not first_section:
             return render(request, 'error.html', {'message': 'Exam configuration error: No sections found.'})
-            
         attempt.current_section = first_section
         attempt.section_start_time = timezone.now()
         attempt.save()
 
-    # 2. Calculate Time Left for CURRENT SECTION
-    # Time passed since section started
+    # 2. Calculate Time Left
     elapsed = (timezone.now() - attempt.section_start_time).total_seconds()
-    # Total time allowed for this section (in seconds)
     duration_sec = attempt.current_section.duration_minutes * 60
     time_left = max(0, duration_sec - elapsed)
 
-    # Auto-redirect if time is already up for this section (prevents stuck state)
     if time_left == 0:
          return redirect('submit_section', attempt_id=attempt.id)
+
+    # 3. CHECK IF LAST SECTION (CRITICAL FIX)
+    # We check if there are any sections with a higher order than the current one
+    next_section_exists = ExamSection.objects.filter(
+        exam=exam, 
+        order__gt=attempt.current_section.order
+    ).exists()
 
     context = {
         'exam': exam,
@@ -65,12 +68,10 @@ def start_exam(request, topic_id):
         'questions': attempt.current_section.questions.all(),
         'attempt': attempt,
         'time_left': int(time_left),
-        # Progress info
         'total_sections': exam.sections.count(),
-        # Find index of current section for display (1 of 3)
-        'current_section_index': list(exam.sections.all()).index(attempt.current_section) + 1
+        'current_section_index': list(exam.sections.order_by('order')).index(attempt.current_section) + 1,
+        'is_last_section': not next_section_exists,  # <--- PASS THIS TO TEMPLATE
     }
-    # Note: We use the new section-based template
     return render(request, 'assessments/take_section_exam.html', context)
 
 
