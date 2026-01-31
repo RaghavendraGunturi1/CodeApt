@@ -5,7 +5,7 @@
     <div class="text-center text-white">
         <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 5rem;"></i>
         <h2 class="fw-bold mt-4">Exam Paused</h2>
-        <p class="lead">Full-screen mode is required to continue.</p>
+        <p class="lead">Full-screen mode is required.</p>
         <button onclick="returnToFullscreen()" class="btn btn-primary btn-lg fw-bold mt-3">Resume Exam</button>
     </div>
 </div>
@@ -33,10 +33,9 @@
     </div>
 
     <div class="d-flex h-100">
-        
         <div class="bg-white border-end d-none d-md-block" style="width: 260px; overflow-y: auto;">
             <div class="p-3 bg-light border-bottom fw-bold text-uppercase small text-muted">
-                Exam Sections ({{ current_section_index }}/{{ total_sections }})
+                Exam Sections
             </div>
             <div class="list-group list-group-flush">
                 {% for sec in exam.sections.all %}
@@ -44,19 +43,10 @@
                     {% if sec.id == section.id %}bg-primary text-white fw-bold
                     {% elif sec.order < section.order %}bg-light text-success
                     {% else %}text-muted{% endif %}">
-                    
                     <div>
                         <div style="font-size: 0.9rem;">{{ sec.name }}</div>
                         <div class="small opacity-75">{{ sec.duration_minutes }} mins</div>
                     </div>
-
-                    {% if sec.order < section.order %}
-                        <i class="bi bi-check-circle-fill fs-5"></i>
-                    {% elif sec.id == section.id %}
-                        <div class="spinner-grow spinner-grow-sm" role="status" style="width: 1rem; height: 1rem;"></div>
-                    {% else %}
-                        <i class="bi bi-lock-fill fs-5 opacity-50"></i>
-                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -71,11 +61,7 @@
                         <span class="badge bg-secondary">{{ q.marks }} Marks</span>
                     </div>
                     <div class="card-body p-4">
-                        
-                        {% if q.text %}
-                            <h5 class="fw-bold mb-3" style="white-space: pre-wrap;">{{ q.text }}</h5>
-                        {% endif %}
-
+                        {% if q.text %} <h5 class="fw-bold mb-3" style="white-space: pre-wrap;">{{ q.text }}</h5> {% endif %}
                         {% if q.image %}
                             <div class="mb-4 text-center">
                                 <img src="{{ q.image.url }}" class="img-fluid rounded border shadow-sm" style="max-height: 300px;">
@@ -89,7 +75,6 @@
                                 {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
                                 {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
                             </div>
-
                         {% elif q.q_type == 'MCQ_MULTI' %}
                             <div class="d-flex flex-column gap-2">
                                 {% if q.option_1 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="1" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
@@ -97,7 +82,6 @@
                                 {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
                                 {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
                             </div>
-
                         {% elif q.q_type == 'CODE' %}
                             <div class="mt-2" data-is-code="true" data-qid="{{q.id}}" data-index="{{ forloop.counter0 }}">
                                 <div class="row g-0 border rounded overflow-hidden">
@@ -129,16 +113,14 @@
 
         <div class="bg-white border-start shadow-sm d-none d-md-block" style="width: 280px; height: calc(100vh - 60px); overflow-y: auto;">
             <div class="p-3">
-                <h6 class="fw-bold text-uppercase text-muted mb-3">Question Palette</h6>
+                <h6 class="fw-bold text-uppercase text-muted mb-3">Palette</h6>
                 <div class="d-grid gap-2" style="grid-template-columns: repeat(4, 1fr);">
                     {% for q in questions %}
                     <button onclick="jumpToQuestion({{ forloop.counter0 }})" id="palette_btn_{{ forloop.counter0 }}" class="btn btn-outline-secondary btn-sm fw-bold palette-btn">{{ forloop.counter }}</button>
                     {% endfor %}
                 </div>
                 <hr>
-                <div class="d-grid gap-2">
-                     <button onclick="clearResponse()" class="btn btn-outline-danger btn-sm"><i class="bi bi-eraser"></i> Clear Answer</button>
-                </div>
+                <button onclick="clearResponse()" class="btn btn-outline-danger btn-sm w-100">Clear Answer</button>
             </div>
         </div>
     </div>
@@ -148,13 +130,8 @@
     <div class="card p-5 shadow border-0" style="max-width: 600px; margin: auto;">
         <h1 class="fw-bold">{{ exam.topic.name }}</h1>
         <h3 class="text-primary">{{ section.name }}</h3>
-        <p class="text-muted">{{ section.duration_minutes }} Minutes for this section</p>
-        <hr>
-        <div class="alert alert-info text-start">
-            <i class="bi bi-info-circle-fill"></i> You are about to start <strong>{{ section.name }}</strong>.
-            Once you finish this section, you cannot return to it.
-        </div>
-        <button onclick="enterExam()" class="btn btn-success btn-lg fw-bold w-100">Start Section</button>
+        <p class="text-muted">{{ section.duration_minutes }} Minutes</p>
+        <button onclick="enterExam()" class="btn btn-success btn-lg fw-bold w-100 mt-4">Start Section</button>
     </div>
 </div>
 
@@ -170,134 +147,128 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
 
 <script>
-    const CODE_DATA = {
-        {% for q in questions %}
-            {% if q.q_type == 'CODE' %}
-                "{{q.id}}": "{{ q.starter_code|default:''|escapejs }}",
-            {% endif %}
-        {% endfor %}
-    };
+    let isTransitioning = false; 
+
+    function returnToFullscreen() {
+        isTransitioning = true;
+        const elem = document.documentElement;
+        const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
+        if(req) req.call(elem).catch(e => console.log("FS Fail", e));
+        
+        hideOverlay();
+        // Ignore checks for 3s to let browser animate
+        setTimeout(() => { isTransitioning = false; }, 3000);
+    }
+
+    function showOverlay() {
+        document.getElementById('fullscreen-overlay').style.setProperty('display', 'flex', 'important');
+        document.getElementById('exam-container').style.filter = "blur(10px)";
+    }
+
+    function hideOverlay() {
+        document.getElementById('fullscreen-overlay').style.setProperty('display', 'none', 'important');
+        document.getElementById('exam-container').style.filter = "none";
+    }
 </script>
 
 <script>
+    // --- SAFE DATA LOADING ---
+    const CODE_DATA = {};
+    try {
+        {% for q in questions %}
+            {% if q.q_type == 'CODE' %}
+                CODE_DATA["{{q.id}}"] = "{{ q.starter_code|default:''|escapejs }}";
+            {% endif %}
+        {% endfor %}
+    } catch(e) { console.error("Data Load Error", e); }
+
     // --- VARIABLES ---
     let timeLeft = {{ time_left }}; 
     const TOTAL_QUESTIONS = {{ questions|length }};
-    const MAX_WARNINGS = 2; 
+    const MAX_WARNINGS = 2;
+    let warningCount = 0;
     
     let currentQuestionIndex = 0;
     let answeredQuestions = new Set();
     let examEditors = {}; 
     let timerInterval;
     let monacoReady = false; 
-    
-    // State Flags
-    let isTransitioning = false; 
-    let warningCount = 0;
     let isReloading = false;
-    let lastWarningTime = 0; // For debouncing
+    let lastWarningTime = 0; 
+    
+    // SAFETY FLAG: Prevents the alert itself from triggering a blur warning
+    let isAlertOpen = false;
 
-    // --- INIT ---
+    // Restore warnings
     let storedWarnings = sessionStorage.getItem('section_warnings');
     if (storedWarnings) warningCount = parseInt(storedWarnings);
 
-    // --- 1. ENTER EXAM ---
+    // --- ENTER EXAM ---
     function enterExam() {
-        isTransitioning = true;
-        const elem = document.documentElement;
-        const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-        if(req) req.call(elem).catch(err => console.warn("FS Error:", err));
-
+        returnToFullscreen();
         document.getElementById('start-modal').style.display = 'none';
         document.getElementById('exam-container').style.display = 'block';
-        hideOverlay();
 
         startMonacoLoader();
         startTimer();
         showQuestion(0);
-        
-        setTimeout(() => { isTransitioning = false; checkFullscreenStatus(); }, 3000);
+        startSecurityChecks();
     }
 
-    // --- 2. WARNING SYSTEM (STRICT) ---
+    // --- SECURITY & WARNINGS ---
+    function startSecurityChecks() {
+        // Fullscreen Check (Interval)
+        setInterval(() => {
+            if (isTransitioning) return;
+            const isFS = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+            if (!isFS) showOverlay();
+            else hideOverlay();
+        }, 500);
+
+        // Visibility (Tab Switch)
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) triggerWarning("You switched tabs!");
+        });
+
+        // Blur (Focus Lost / Alt+Tab)
+        window.addEventListener("blur", () => {
+            triggerWarning("Focus lost! Did you switch applications?");
+        });
+
+        window.addEventListener("beforeunload", () => { isReloading = true; });
+    }
+
     function triggerWarning(reason) {
-        // 1. Check if exam is active and not currently submitting
+        // 1. Check if exam is actually active
         if (isReloading || document.getElementById('exam-container').style.display !== 'block') return;
-        
-        // 2. Cooldown Check (Prevent double warnings for the same action)
+
+        // 2. CHECK IF ALERT IS ALREADY OPEN (Prevents Infinite Loop)
+        if (isAlertOpen) return;
+
+        // 3. Debounce (Prevent duplicate warnings within 2 seconds)
         const now = Date.now();
-        if (now - lastWarningTime < 1000) return; // Ignore if warning triggered < 1s ago
+        if (now - lastWarningTime < 2000) return; 
         lastWarningTime = now;
 
-        // 3. Increment Warning
+        // 4. Update Count
         warningCount++;
         sessionStorage.setItem('section_warnings', warningCount);
-        
-        alert(`WARNING ${warningCount}/${MAX_WARNINGS}: ${reason}`);
+
+        // 5. Trigger Alert Safely
+        isAlertOpen = true; // Lock warnings
         
         if (warningCount > MAX_WARNINGS) {
-            alert("Maximum warnings exceeded. Auto-submitting section.");
-            finishSection(true);
+            alert(`Maximum warnings exceeded (${warningCount}/${MAX_WARNINGS}). The exam will now auto-submit.`);
+            finishSection(true, true);
+        } else {
+            alert(`WARNING ${warningCount}/${MAX_WARNINGS}: ${reason}\n\nDo not switch tabs or windows.`);
+            
+            // Unlock warnings after 1 second (gives time for focus to return)
+            setTimeout(() => { isAlertOpen = false; }, 1000);
         }
     }
 
-    // A. Tab Switch (Visibility API)
-    document.addEventListener("visibilitychange", () => {
-        if (document.hidden) triggerWarning("You switched tabs! This is prohibited.");
-    });
-
-    // B. App Switch / Focus Loss (Window Blur) - NEW
-    window.addEventListener("blur", () => {
-        triggerWarning("You switched to another application or lost focus!");
-    });
-
-    // Prevent warnings on reload/submit
-    window.addEventListener("beforeunload", () => { isReloading = true; });
-
-
-    // --- 3. MONACO SYSTEM ---
-    function startMonacoLoader() {
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
-            monacoReady = true;
-            loadEditorForQuestion(currentQuestionIndex);
-        });
-    }
-
-    function loadEditorForQuestion(index) {
-        if (!monacoReady) return; 
-        const card = document.getElementById(`q_card_${index}`);
-        if (!card) return;
-        const codeBlock = card.querySelector('[data-is-code="true"]');
-        if (!codeBlock) return;
-
-        const qId = codeBlock.getAttribute('data-qid');
-        if (examEditors[qId]) {
-            setTimeout(() => examEditors[qId].layout(), 50); 
-            return;
-        }
-
-        const container = document.getElementById(`editor_${qId}`);
-        if (container) {
-            try {
-                container.innerHTML = ''; 
-                const ed = monaco.editor.create(container, {
-                    value: CODE_DATA[qId] || "",
-                    language: 'python',
-                    theme: 'vs',
-                    minimap: { enabled: false },
-                    automaticLayout: true,
-                    scrollBeyondLastLine: false
-                });
-                examEditors[qId] = ed;
-                ed.onDidChangeModelContent(() => markAnswered(index));
-            } catch (e) {
-                console.error("Editor Create Error:", e);
-            }
-        }
-    }
-
-    // --- 4. NAVIGATION ---
+    // --- NAVIGATION ---
     function showQuestion(index) {
         document.querySelectorAll('.question-card').forEach(el => el.style.display = 'none');
         const target = document.getElementById(`q_card_${index}`);
@@ -309,7 +280,7 @@
         updateButtons();
         updatePalette();
     }
-    
+
     function nextQuestion() { if(currentQuestionIndex < TOTAL_QUESTIONS-1) showQuestion(currentQuestionIndex+1); }
     function prevQuestion() { if(currentQuestionIndex > 0) showQuestion(currentQuestionIndex-1); }
     function jumpToQuestion(idx) { showQuestion(idx); }
@@ -327,7 +298,7 @@
             if(i === currentQuestionIndex) btn.classList.add('active');
         }
     }
-    
+
     function markAnswered(index) { answeredQuestions.add(index); updatePalette(); }
     
     function clearResponse() {
@@ -338,53 +309,21 @@
         updatePalette();
     }
 
-    // --- 5. RUN CODE ---
-    function runCustomCode(qId) {
-        if(!examEditors[qId]) return;
-        const code = examEditors[qId].getValue();
-        const input = document.getElementById(`input_${qId}`).value;
-        const lang = document.getElementById(`lang_${qId}`).value;
-        const outputBox = document.getElementById(`output_${qId}`);
-        outputBox.innerText = "Running...";
-        
-        fetch('/run_code/', {
-            method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
-            body: JSON.stringify({ code: code, input: input, language: lang })
-        })
-        .then(res => res.json())
-        .then(data => outputBox.innerText = data.output || data.error || "No Output")
-        .catch(err => outputBox.innerText = "Error: " + err);
-    }
-
-    // --- 6. TIMER & SUBMISSION ---
-    function startTimer() {
-        if(timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(() => {
-            timeLeft--;
-            let m = Math.floor(timeLeft / 60);
-            let s = timeLeft % 60;
-            document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-            if (timeLeft <= 0) finishSection(true); 
-        }, 1000);
-    }
-
-    function finishSection(auto = false) {
+    // --- SUBMISSION ---
+    function finishSection(auto = false, forceEnd = false) {
         const btn = document.getElementById('submit-btn');
-        if (btn && btn.disabled && !auto) return; 
+        if (btn && btn.disabled && !auto) return;
 
         clearInterval(timerInterval);
-        isReloading = true; // IMPORTANT: Prevents warnings during submit
-        
-        if(!auto && !confirm("Finish this section? You cannot go back.")) {
-            isReloading = false; // Re-enable warnings
-            startTimer(); 
-            return;
+        isReloading = true; // Stop warnings
+
+        if (!auto && !confirm("Finish this section?")) {
+            isReloading = false; startTimer(); return;
         }
 
         if(btn) {
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+            btn.innerHTML = 'Processing...';
         }
 
         let answers = {};
@@ -400,18 +339,19 @@
         }
         
         for (let [qId, editor] of Object.entries(examEditors)) {
-            if(editor) answers[qId] = { 'code': editor.getValue(), 'language': document.getElementById(`lang_${qId}`).value };
+            if(editor) {
+                try {
+                     answers[qId] = { 'code': editor.getValue(), 'language': document.getElementById(`lang_${qId}`).value };
+                } catch(e) {}
+            }
         }
 
         fetch("{% url 'submit_section' attempt.id %}", {
             method: 'POST',
             headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
-            body: JSON.stringify({ answers: answers, warnings: warningCount })
+            body: JSON.stringify({ answers: answers, warnings: warningCount, force_end: forceEnd })
         })
-        .then(res => {
-            if(!res.ok) throw new Error("Network response was not ok");
-            return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
             if(data.status === 'next_section' || data.status === 'finished') {
                 sessionStorage.removeItem('section_warnings');
@@ -420,53 +360,71 @@
         })
         .catch(err => {
             console.error(err);
-            alert("Submission failed. Check connection.");
-            isReloading = false;
-            if(btn) { btn.disabled = false; btn.innerText = "Retry Submit"; }
+            alert("Submission failed. Check internet.");
+            if(btn) btn.disabled = false;
         });
     }
 
-    // --- 7. FULLSCREEN ---
-    function isFullscreen() {
-        return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+    // --- MONACO ---
+    function startMonacoLoader() {
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            monacoReady = true;
+            loadEditorForQuestion(currentQuestionIndex);
+        });
     }
 
-    function checkFullscreenStatus() {
-        if (isTransitioning) return;
-        if (!isFullscreen()) showOverlay();
-        else hideOverlay();
-    }
+    function loadEditorForQuestion(index) {
+        if (!monacoReady) return;
+        const card = document.getElementById(`q_card_${index}`);
+        if (!card) return;
+        const codeBlock = card.querySelector('[data-is-code="true"]');
+        if (!codeBlock) return;
+        const qId = codeBlock.getAttribute('data-qid');
+        
+        if (examEditors[qId]) { setTimeout(() => examEditors[qId].layout(), 50); return; }
 
-    function showOverlay() {
-        const overlay = document.getElementById('fullscreen-overlay');
-        const container = document.getElementById('exam-container');
-        if (overlay.style.display !== 'flex') {
-            overlay.style.display = 'flex';
-            container.style.filter = "blur(10px)";
+        const container = document.getElementById(`editor_${qId}`);
+        if (container) {
+            container.innerHTML = '';
+            const ed = monaco.editor.create(container, {
+                value: CODE_DATA[qId] || "", language: 'python', theme: 'vs',
+                minimap: { enabled: false }, automaticLayout: true, scrollBeyondLastLine: false
+            });
+            examEditors[qId] = ed;
+            ed.onDidChangeModelContent(() => markAnswered(index));
         }
     }
 
-    function hideOverlay() {
-        const overlay = document.getElementById('fullscreen-overlay');
-        const container = document.getElementById('exam-container');
-        if(overlay) overlay.style.setProperty('display', 'none', 'important');
-        if(container) container.style.filter = "none";
+    function runCustomCode(qId) {
+        if(!examEditors[qId]) return;
+        const outputBox = document.getElementById(`output_${qId}`);
+        outputBox.innerText = "Running...";
+        fetch('/run_code/', {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                code: examEditors[qId].getValue(), 
+                input: document.getElementById(`input_${qId}`).value, 
+                language: document.getElementById(`lang_${qId}`).value 
+            })
+        })
+        .then(res => res.json())
+        .then(data => outputBox.innerText = data.output || data.error || "No Output")
+        .catch(err => outputBox.innerText = "Error: " + err);
     }
 
-    function returnToFullscreen() {
-        isTransitioning = true; 
-        const elem = document.documentElement;
-        const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-        if(req) req.call(elem).catch(() => {});
-        hideOverlay();
-        setTimeout(() => { isTransitioning = false; }, 3000);
+    // --- TIMER ---
+    function startTimer() {
+        if(timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            let m = Math.floor(timeLeft / 60);
+            let s = timeLeft % 60;
+            document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+            if (timeLeft <= 0) finishSection(true); 
+        }, 1000);
     }
-
-    document.addEventListener("fullscreenchange", checkFullscreenStatus);
-    document.addEventListener("webkitfullscreenchange", checkFullscreenStatus);
-    setInterval(() => {
-        if (document.getElementById('exam-container').style.display === 'block') checkFullscreenStatus();
-    }, 500);
 
 </script>
 {% endblock %}

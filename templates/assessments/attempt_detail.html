@@ -2,6 +2,19 @@
 {% block content %}
 <div class="container py-5">
     
+    {% if is_malpractice %}
+    <div class="alert alert-danger d-flex align-items-center mb-4 shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+        <div>
+            <h5 class="alert-heading fw-bold mb-1">System Flag Raised</h5>
+            <p class="mb-0">
+                The exam session was auto-submitted due to multiple focus violations. 
+                The system detected that the window focus was lost <strong>{{ warnings }} times</strong>.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="card border-0 shadow-lg mb-4 overflow-hidden">
         <div class="card-body p-5 text-center {% if attempt.passed %}bg-success bg-opacity-10{% else %}bg-danger bg-opacity-10{% endif %}">
             <h2 class="fw-bold mb-3">{{ attempt.exam.topic.name }}</h2>
@@ -13,15 +26,19 @@
                     </div>
                     <div class="text-muted text-uppercase small fw-bold mt-2">Total Score</div>
                 </div>
+                
                 <div class="col-md-3 border-start">
                     <div class="display-4 fw-bold">
                         {% if attempt.passed %}Passed{% else %}Failed{% endif %}
                     </div>
                     <div class="text-muted text-uppercase small fw-bold mt-2">Result</div>
                 </div>
+                
                 <div class="col-md-3 border-start">
-                    <div class="display-4 fw-bold">{{ attempt.warnings_triggered }}</div>
-                    <div class="text-muted text-uppercase small fw-bold mt-2">Warnings</div>
+                    <div class="display-4 fw-bold {% if warnings > 0 %}text-warning{% endif %}">
+                        {{ warnings }}
+                    </div>
+                    <div class="text-muted text-uppercase small fw-bold mt-2">Focus Warnings</div>
                 </div>
             </div>
             
@@ -44,6 +61,10 @@
                 </div>
             </div>
             <div class="card-body">
+                {% if item.question.text %}
+                    <h5 class="fw-bold mb-3" style="white-space: pre-wrap;">{{ item.question.text }}</h5>
+                {% endif %}
+
                 {% if item.question.image %}
                     <div class="mb-3">
                         <img src="{{ item.question.image.url }}" class="img-fluid rounded border" style="max-height: 200px;">

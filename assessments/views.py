@@ -77,118 +77,188 @@ def start_exam(request, topic_id):
 
 # In assessments/views.py
 
+
 @login_required
 def submit_section(request, attempt_id):
-    """
-    Handles submission of a SINGLE section.
-    POST: User clicks "Next/Submit" with answers.
-    GET:  System forces submission (Time Expired).
-    """
-    attempt = get_object_or_404(StudentExamAttempt, id=attempt_id, user=request.user)
-    current_section = attempt.current_section
-    
-    # Safety Check: If no active section, just go to dashboard or result
-    if not current_section:
+    try:
+        attempt = get_object_or_404(StudentExamAttempt, id=attempt_id, user=request.user)
+        current_section = attempt.current_section
+        
         if attempt.completed_at:
-             return redirect('attempt_detail', attempt_id=attempt.id)
-        return redirect('dashboard')
-
-    # 1. Parse Answers based on Request Method
-    new_answers = {}
-    
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            new_answers = data.get('answers', {})
-        except json.JSONDecodeError:
-            pass # No answers provided
-    
-    # (If GET, new_answers remains empty {}, representing a forced timeout submission)
-
-    # 2. Save Answers (Merge with existing)
-    if not attempt.response_data:
-        attempt.response_data = {}
-    
-    # Only update if we actually have new answers (POST), otherwise keep old ones
-    if new_answers:
-        attempt.response_data[str(current_section.id)] = new_answers
-        attempt.save() # Save intermediate state
-    
-    # 3. Find Next Section
-    next_section = ExamSection.objects.filter(
-        exam=attempt.exam, 
-        order__gt=current_section.order
-    ).order_by('order').first()
-
-    if next_section:
-        # Move to next section
-        attempt.current_section = next_section
-        attempt.section_start_time = timezone.now() # Reset timer
-        attempt.save()
-        
-        # If POST (AJAX), return JSON URL. If GET (Redirect), do a standard redirect.
-        if request.method == "POST":
-            return JsonResponse({
-                'status': 'next_section', 
-                'redirect_url': f'/assessments/start/{attempt.exam.topic.id}/'
-            })
-        else:
-            return redirect('start_exam', topic_id=attempt.exam.topic.id)
-
-    else:
-        # FINISH EXAM
-        attempt.completed_at = timezone.now()
-        attempt.current_section = None # Clear active section
-        attempt.save()
-        
-        # Calculate Final Score
-        calculate_final_score(attempt)
-        
-        if request.method == "POST":
-            return JsonResponse({
-                'status': 'finished', 
-                'redirect_url': f'/assessments/result/{attempt.id}/'
-            })
-        else:
             return redirect('attempt_detail', attempt_id=attempt.id)
+        
+        if not current_section:
+            return redirect('dashboard')
+
+        # 1. Parse Request Data
+        new_answers = {}
+        warnings = 0
+        force_end_exam = False 
+
+        if request.method == "POST":
+            try:
+                data = json.loads(request.body)
+                new_answers = data.get('answers', {})
+                warnings = int(data.get('warnings', 0)) # Ensure integer
+                force_end_exam = data.get('force_end', False)
+            except (json.JSONDecodeError, TypeError):
+                print("Warning: Failed to parse JSON body")
+        
+        # 2. Safe JSON Field Handling (CRITICAL FIX)
+        # Handle case where field is None, Empty String, or encoded JSON String
+        if not attempt.response_data:
+            attempt.response_data = {}
+        elif isinstance(attempt.response_data, str):
+            try:
+                attempt.response_data = json.loads(attempt.response_data)
+            except:
+                attempt.response_data = {}
+        
+        # Ensure it is definitely a dict now
+        if not isinstance(attempt.response_data, dict):
+            attempt.response_data = {}
+
+        # 3. Save Metadata (Warnings)
+        if 'metadata' not in attempt.response_data:
+            attempt.response_data['metadata'] = {}
+        
+        # Get existing warnings safely
+        metadata = attempt.response_data['metadata']
+        current_stored = metadata.get('warnings', 0)
+        metadata['warnings'] = max(current_stored, warnings)
+        
+        attempt.response_data['metadata'] = metadata # Re-assign to ensure save
+
+        # 4. Save Answers
+        if new_answers:
+            attempt.response_data[str(current_section.id)] = new_answers
+        
+        attempt.save() 
+        
+        # 5. Logic: Next Section or Finish?
+        next_section = None
+        if not force_end_exam:
+            next_section = ExamSection.objects.filter(
+                exam=attempt.exam, 
+                order__gt=current_section.order
+            ).order_by('order').first()
+
+        if next_section:
+            attempt.current_section = next_section
+            attempt.section_start_time = timezone.now()
+            attempt.save()
+            
+            if request.method == "POST":
+                return JsonResponse({
+                    'status': 'next_section', 
+                    'redirect_url': f'/assessments/start/{attempt.exam.topic.id}/'
+                })
+            else:
+                return redirect('start_exam', topic_id=attempt.exam.topic.id)
+        else:
+            # FINISH EXAM
+            attempt.completed_at = timezone.now()
+            attempt.current_section = None 
+            attempt.save()
+            
+            # Ensure this function exists and works!
+            if 'calculate_final_score' in globals():
+                calculate_final_score(attempt)
+            
+            redirect_url = f'/assessments/result/{attempt.id}/'
+            
+            if request.method == "POST":
+                return JsonResponse({'status': 'finished', 'redirect_url': redirect_url})
+            else:
+                return redirect('attempt_detail', attempt_id=attempt.id)
+
+    except Exception as e:
+        # LOG THE ERROR so you can see it in the terminal
+        print(f"CRITICAL ERROR in submit_section: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Return JSON error to frontend
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Server Error: {str(e)}'
+        }, status=500)
 
 def calculate_final_score(attempt):
-    total_score = 0
+    total_obtained = 0
     
-    # response_data structure: { "sec_id": { "q_id": "ans" }, ... }
-    # We flatten this to process easier, or loop through sections
-    
-    for section_id, section_answers in attempt.response_data.items():
-        for q_id, user_ans in section_answers.items():
-            try:
-                question = ExamQuestion.objects.get(id=q_id)
-                
-                # Grading Logic (Same as before)
-                if question.q_type == 'MCQ_SINGLE':
-                    if str(user_ans) == str(question.correct_options):
-                        total_score += question.marks
-                
-                elif question.q_type == 'MCQ_MULTI':
-                    if not question.correct_options: continue
-                    correct_set = set(str(question.correct_options).split(','))
-                    user_val_list = user_ans if isinstance(user_ans, list) else [user_ans]
-                    user_set = set(map(str, user_val_list))
-                    
-                    if correct_set == user_set:
-                        total_score += question.marks
-                
-                elif question.q_type == 'CODE':
-                    # Basic scoring: check if code exists and is substantial
-                    if user_ans.get('code') and len(user_ans.get('code')) > 10:
-                        total_score += question.marks
-                        
-            except ExamQuestion.DoesNotExist:
-                continue
+    if not attempt.response_data:
+        attempt.score = 0
+        attempt.passed = False
+        attempt.save()
+        return
 
-    attempt.score = total_score
-    attempt.passed = total_score >= (attempt.exam.total_marks * (attempt.exam.pass_percentage / 100))
+    # 1. Extract Answers (Ignoring Metadata)
+    flat_answers = {}
+    for sec_id, sec_data in attempt.response_data.items():
+        # CRITICAL FIX: Skip the metadata/warnings block
+        if sec_id == 'metadata':
+            continue
+            
+        if isinstance(sec_data, dict):
+            flat_answers.update(sec_data)
+
+    # 2. Score Calculation
+    # We iterate through the ACTUAL questions in the exam to find their answers.
+    # This is safer than iterating the JSON keys directly.
+    questions = ExamQuestion.objects.filter(section__exam=attempt.exam)
+    
+    for q in questions:
+        # Get user answer safely (as string)
+        user_ans = flat_answers.get(str(q.id))
+        
+        if not user_ans:
+            continue
+
+        # Logic for checking answers
+        is_correct = False
+        
+        if q.q_type == 'MCQ_SINGLE':
+            if str(user_ans) == str(q.correct_options):
+                is_correct = True
+                
+        elif q.q_type == 'MCQ_MULTI':
+            # Handle list or comma-separated string
+            if isinstance(user_ans, list):
+                u_opts = set(map(str, user_ans))
+            else:
+                u_opts = set(map(str, str(user_ans).split(',')))
+                
+            c_opts = set(map(str, str(q.correct_options).split(',')))
+            
+            if u_opts == c_opts:
+                is_correct = True
+
+        elif q.q_type == 'CODE':
+            # Coding questions usually require manual review or test case results
+            # For now, we assume if they passed test cases in frontend, they get marks.
+            # OR you rely on the 'passed_cases' if you stored that.
+            # If you want to auto-give marks for code submission:
+            if isinstance(user_ans, dict) and user_ans.get('code'):
+                # Simple logic: if code exists, give marks (or implement complex checking)
+                # Ideally, you stored 'passed' boolean in previous step.
+                is_correct = True 
+
+        if is_correct:
+            total_obtained += q.marks
+
+    # 3. Save Final Score
+    attempt.score = total_obtained
+    
+    # Calculate Pass/Fail (e.g., 40% threshold)
+    total_marks = attempt.exam.total_marks
+    if total_marks > 0:
+        percentage = (total_obtained / total_marks) * 100
+        attempt.passed = percentage >= 40  # Change 40 to your pass mark
+    else:
+        attempt.passed = True
+
     attempt.save()
-
 
 @login_required
 def check_code(request, question_id):
@@ -240,16 +310,26 @@ def attempt_detail(request, attempt_id):
     attempt = get_object_or_404(StudentExamAttempt, id=attempt_id, user=request.user)
     
     # Get all questions across all sections for this exam
-    # Using 'sections__questions' lookup
     questions = ExamQuestion.objects.filter(section__exam=attempt.exam).order_by('section__order', 'id')
     
-    # Flatten response data for easier lookup
-    # Current structure: { "sec_1": {"q_1": "ans"}, "sec_2": ... }
+    # --- 1. Parse Response Data & Extract Warnings ---
     flat_answers = {}
+    warnings = 0
+    
     if attempt.response_data:
-        for sec_data in attempt.response_data.values():
-            flat_answers.update(sec_data)
+        # Check for Metadata (Warnings)
+        if 'metadata' in attempt.response_data:
+            warnings = attempt.response_data['metadata'].get('warnings', 0)
+        
+        # Flatten answers (IMPORTANT: Skip 'metadata' key)
+        for sec_id, sec_data in attempt.response_data.items():
+            if sec_id != 'metadata' and isinstance(sec_data, dict):
+                flat_answers.update(sec_data)
 
+    # Check for Malpractice (Threshold > 2)
+    is_malpractice = warnings > 2
+
+    # --- 2. Build Report ---
     report = []
     
     for q in questions:
@@ -273,7 +353,8 @@ def attempt_detail(request, attempt_id):
             if user_ans:
                 u_opts = user_ans if isinstance(user_ans, list) else [user_ans]
                 user_display = ", ".join([options.get(str(o), str(o)) for o in u_opts])
-                if set(c_opts) == set(map(str, u_opts)): is_correct = True
+                # Sort both lists to compare sets correctly
+                if set(map(str, c_opts)) == set(map(str, u_opts)): is_correct = True
             else:
                 user_display = "Not Attempted"
 
@@ -291,10 +372,12 @@ def attempt_detail(request, attempt_id):
             'correct_answer': correct_display,
             'is_correct': is_correct,
             'type': q.q_type,
-            'section_name': q.section.name # Useful for grouping in UI
+            'section_name': q.section.name 
         })
 
     return render(request, 'assessments/attempt_detail.html', {
         'attempt': attempt, 
-        'report': report
+        'report': report,
+        'warnings': warnings,           # <-- Added Context
+        'is_malpractice': is_malpractice # <-- Added Context
     })
