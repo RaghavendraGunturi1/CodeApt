@@ -74,36 +74,44 @@ def start_exam(request, topic_id):
     return render(request, 'assessments/take_section_exam.html', context)
 
 
+# In assessments/views.py
+
 @login_required
 def submit_section(request, attempt_id):
     """
     Handles submission of a SINGLE section.
-    If there are more sections, moves to the next.
-    If last section, finishes the exam.
+    POST: User clicks "Next/Submit" with answers.
+    GET:  System forces submission (Time Expired).
     """
-    if request.method != "POST":
-        return JsonResponse({'error': 'Invalid method'}, status=400)
-
     attempt = get_object_or_404(StudentExamAttempt, id=attempt_id, user=request.user)
     current_section = attempt.current_section
     
-    # Safety check
+    # Safety Check: If no active section, just go to dashboard or result
     if not current_section:
-        return JsonResponse({'status': 'finished', 'redirect_url': '/dashboard/'})
+        if attempt.completed_at:
+             return redirect('attempt_detail', attempt_id=attempt.id)
+        return redirect('dashboard')
 
-    # 1. Parse Data
-    try:
-        data = json.loads(request.body)
-        new_answers = data.get('answers', {})
-    except json.JSONDecodeError:
-        new_answers = {}
+    # 1. Parse Answers based on Request Method
+    new_answers = {}
+    
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            new_answers = data.get('answers', {})
+        except json.JSONDecodeError:
+            pass # No answers provided
+    
+    # (If GET, new_answers remains empty {}, representing a forced timeout submission)
 
-    # 2. Save Answers (Nested by Section ID to keep organized)
-    # We update the dictionary, ensuring we don't overwrite other sections
+    # 2. Save Answers (Merge with existing)
     if not attempt.response_data:
         attempt.response_data = {}
     
-    attempt.response_data[str(current_section.id)] = new_answers
+    # Only update if we actually have new answers (POST), otherwise keep old ones
+    if new_answers:
+        attempt.response_data[str(current_section.id)] = new_answers
+        attempt.save() # Save intermediate state
     
     # 3. Find Next Section
     next_section = ExamSection.objects.filter(
@@ -117,24 +125,31 @@ def submit_section(request, attempt_id):
         attempt.section_start_time = timezone.now() # Reset timer
         attempt.save()
         
-        return JsonResponse({
-            'status': 'next_section', 
-            'redirect_url': f'/assessments/start/{attempt.exam.topic.id}/'
-        })
+        # If POST (AJAX), return JSON URL. If GET (Redirect), do a standard redirect.
+        if request.method == "POST":
+            return JsonResponse({
+                'status': 'next_section', 
+                'redirect_url': f'/assessments/start/{attempt.exam.topic.id}/'
+            })
+        else:
+            return redirect('start_exam', topic_id=attempt.exam.topic.id)
+
     else:
         # FINISH EXAM
         attempt.completed_at = timezone.now()
-        attempt.current_section = None # Clear current section marker
+        attempt.current_section = None # Clear active section
         attempt.save()
         
         # Calculate Final Score
         calculate_final_score(attempt)
         
-        return JsonResponse({
-            'status': 'finished', 
-            'redirect_url': f'/assessments/result/{attempt.id}/'
-        })
-
+        if request.method == "POST":
+            return JsonResponse({
+                'status': 'finished', 
+                'redirect_url': f'/assessments/result/{attempt.id}/'
+            })
+        else:
+            return redirect('attempt_detail', attempt_id=attempt.id)
 
 def calculate_final_score(attempt):
     total_score = 0
