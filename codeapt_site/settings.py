@@ -12,6 +12,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-default-key-ch
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = [
+    '*',
     'codeapt.in', 
     'www.codeapt.in', 
     '5cmypptmab.us-east-1.awsapprunner.com', 
@@ -23,6 +24,7 @@ ALLOWED_HOSTS = [
 
 # Required for Django 4.0+ to allow logins and form submissions from your domain
 CSRF_TRUSTED_ORIGINS = [
+    '*',
     'https://codeapt.in',
     'https://www.codeapt.in',
     'https://5cmypptmab.us-east-1.awsapprunner.com'
