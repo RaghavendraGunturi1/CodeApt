@@ -85,17 +85,53 @@
                         {% elif q.q_type == 'CODE' %}
                             <div class="mt-2" data-is-code="true" data-qid="{{q.id}}" data-index="{{ forloop.counter0 }}">
                                 <div class="row g-0 border rounded overflow-hidden">
+                                    
                                     <div class="col-md-8 border-end">
                                         <div id="editor_{{q.id}}" style="height: 400px; width: 100%;"></div>
                                     </div>
-                                    <div class="col-md-4 bg-light d-flex flex-column">
-                                        <div class="p-2 bg-secondary text-white small fw-bold">Test Area</div>
-                                        <textarea id="input_{{q.id}}" class="form-control border-0 rounded-0" rows="3" placeholder="Input"></textarea>
-                                        <pre id="output_{{q.id}}" class="flex-grow-1 p-2 m-0 bg-dark text-success small font-monospace" style="height: 100px; overflow-y: auto;">Ready.</pre>
-                                        <div class="p-2 d-flex gap-2">
-                                            <select id="lang_{{q.id}}" class="form-select form-select-sm"><option value="python">Python</option></select>
-                                            <button type="button" onclick="runCustomCode('{{q.id}}')" class="btn btn-sm btn-dark flex-grow-1">Run</button>
+                                    
+                                    <div class="col-md-4 bg-light d-flex flex-column border-start" style="height: 400px;">
+                                        
+                                        <ul class="nav nav-tabs nav-fill bg-white border-bottom" id="codeTabs_{{q.id}}" role="tablist">
+                                            <li class="nav-item">
+                                                <button class="nav-link active small py-2 fw-bold" id="custom-tab-{{q.id}}" data-bs-toggle="tab" data-bs-target="#custom-content-{{q.id}}" type="button">Custom Input</button>
+                                            </li>
+                                            <li class="nav-item">
+                                                <button class="nav-link small py-2 fw-bold" id="results-tab-{{q.id}}" data-bs-toggle="tab" data-bs-target="#results-content-{{q.id}}" type="button">Test Results</button>
+                                            </li>
+                                        </ul>
+
+                                        <div class="tab-content flex-grow-1 position-relative" id="codeTabContent_{{q.id}}">
+                                            
+                                            <div class="tab-pane fade show active position-absolute top-0 start-0 w-100 h-100 p-2 d-flex flex-column" id="custom-content-{{q.id}}">
+                                                <textarea id="input_{{q.id}}" class="form-control border-0 shadow-none mb-2 resize-none" style="flex-shrink: 0;" rows="3" placeholder="Enter custom input here..."></textarea>
+                                                <div class="p-1 bg-secondary text-white small fw-bold rounded-top">Output:</div>
+                                                <pre id="output_{{q.id}}" class="flex-grow-1 p-2 m-0 bg-dark text-success small font-monospace rounded-bottom" style="overflow-y: auto;">Ready.</pre>
+                                            </div>
+
+                                            <div class="tab-pane fade position-absolute top-0 start-0 w-100 h-100" id="results-content-{{q.id}}" style="overflow-y: auto; background-color: #f8f9fa;">
+                                                <div id="test_results_{{q.id}}" class="p-0">
+                                                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted small py-5">
+                                                        <i class="bi bi-play-circle fs-1 mb-2 opacity-50"></i>
+                                                        <div>Click "Run Tests" to validate.</div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+
+                                        <div class="p-2 border-top bg-white z-1"> <select id="lang_{{q.id}}" class="form-select form-select-sm mb-2">
+                                                <option value="python">Python</option>
+                                                <option value="java">Java</option>
+                                                <option value="cpp">C++</option>
+                                                <option value="c">C</option>
+                                                <option value="javascript">JavaScript</option>
+                                            </select>
+                                            <div class="d-flex gap-2">
+                                                <button type="button" onclick="runCustomCode('{{q.id}}')" class="btn btn-sm btn-outline-dark flex-grow-1 fw-bold">Run Custom</button>
+                                                <button type="button" onclick="runTestCases('{{q.id}}')" class="btn btn-sm btn-primary flex-grow-1 fw-bold">Run Tests</button>
+                                            </div>
+                                        </div>
+
                                     </div>
                                 </div>
                             </div>
@@ -412,6 +448,95 @@
         .then(res => res.json())
         .then(data => outputBox.innerText = data.output || data.error || "No Output")
         .catch(err => outputBox.innerText = "Error: " + err);
+    }
+    // --- 3. NEW: RUN TEST CASES FUNCTION ---
+    function runTestCases(qId) {
+        if(!examEditors[qId]) return;
+        
+        // 1. Switch Tab
+        const tabEl = document.getElementById(`results-tab-${qId}`);
+        if (tabEl) { new bootstrap.Tab(tabEl).show(); }
+
+        // 2. Show Loading
+        const resultsBox = document.getElementById(`test_results_${qId}`);
+        resultsBox.innerHTML = `
+            <div class="d-flex flex-column align-items-center justify-content-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div class="mt-2 text-muted small">Running Test Cases...</div>
+            </div>`;
+
+        // 3. Fetch
+        fetch('/assessments/run-test-cases/', {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                q_id: qId,
+                code: examEditors[qId].getValue(), 
+                language: document.getElementById(`lang_${qId}`).value 
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.error) {
+                resultsBox.innerHTML = `<div class="p-3"><div class="alert alert-danger small mb-0">${data.error}</div></div>`;
+                return;
+            }
+
+            let html = '<div class="list-group list-group-flush small border-top">';
+            if (data.results && data.results.length > 0) {
+                data.results.forEach(res => {
+                    const icon = res.passed ? '<i class="bi bi-check-circle-fill text-success fs-5"></i>' : '<i class="bi bi-x-circle-fill text-danger fs-5"></i>';
+                    const bg = res.passed ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10';
+                    
+                    // Truncate long outputs for display
+                    const displayActual = res.actual.length > 50 ? res.actual.substring(0, 50) + '...' : res.actual;
+                    
+                    html += `
+                    <div class="list-group-item ${bg} p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold text-uppercase opacity-75" style="font-size: 0.8rem;">Test Case ${res.case_num}</span>
+                            ${icon}
+                        </div>
+                        
+                        <div class="mb-2">
+                            <div class="fw-bold" style="font-size: 0.75rem; opacity: 0.7;">INPUT</div>
+                            <code class="d-block bg-white border rounded px-2 py-1 text-dark">${res.input}</code>
+                        </div>
+                        
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="fw-bold" style="font-size: 0.75rem; opacity: 0.7;">EXPECTED</div>
+                                <code class="d-block bg-white border rounded px-2 py-1 text-primary">${res.expected}</code>
+                            </div>
+                            <div class="col-6">
+                                <div class="fw-bold" style="font-size: 0.75rem; opacity: 0.7;">ACTUAL</div>
+                                <code class="d-block bg-white border rounded px-2 py-1 ${res.passed ? 'text-success' : 'text-danger'}">${displayActual}</code>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+            } else {
+                html += '<div class="p-4 text-center text-muted">No test cases found.</div>';
+            }
+            html += '</div>';
+
+            // Add Header Summary
+            let header = '';
+            if(data.all_passed) {
+                header = `<div class="bg-success text-white p-3 text-center fw-bold">
+                            <i class="bi bi-trophy-fill me-2"></i> All Test Cases Passed!
+                        </div>`;
+            } else {
+                header = `<div class="bg-warning p-3 text-center fw-bold text-dark">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i> Some Cases Failed
+                        </div>`;
+            }
+
+            resultsBox.innerHTML = header + html;
+        })
+        .catch(err => {
+            resultsBox.innerHTML = `<div class="p-3"><div class="alert alert-danger small"><strong>Error:</strong> ${err}</div></div>`;
+        });
     }
 
     // --- TIMER ---

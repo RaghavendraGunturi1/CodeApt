@@ -15,4 +15,5 @@ urlpatterns = [
     # Reports & History (These are likely missing in your file)
     path('history/', views.exam_history, name='exam_history'),
     path('result/<int:attempt_id>/', views.attempt_detail, name='attempt_detail'),
+    path('run-test-cases/', views.run_question_test_cases, name='run_test_cases'),
 ]

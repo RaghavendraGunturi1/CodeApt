@@ -9,6 +9,7 @@ from datetime import timedelta
 import requests
 import json
 from .models import DailyQuestion, UserStreak, DailySubmission, TestCase
+from core.utils import execute_code_piston
 
 @login_required(login_url='login')
 def daily_challenge(request):
@@ -58,48 +59,54 @@ def submit_mcq(request, question_id):
 @login_required
 def submit_code(request, question_id):
     if request.method == "POST":
-        data = json.loads(request.body)
-        user_code = data.get('code')
-        language = data.get('language')
-        
-        question = get_object_or_404(DailyQuestion, id=question_id)
-        test_cases = question.test_cases.all()
-        
-        score = 0
-        total_cases = test_cases.count()
-        results = []
-
-        # Run against Piston for every test case
-        for test in test_cases:
-            payload = {
-                "language": language, 
-                "version": "3.10.0", # Simplified version mapping for now
-                "files": [{"content": user_code}],
-                "stdin": test.input_data
-            }
+        try:
+            data = json.loads(request.body)
+            user_code = data.get('code')
+            language = data.get('language')
             
-            try:
-                # Call Piston API
-                resp = requests.post('https://emkc.org/api/v2/piston/execute', json=payload)
-                api_out = resp.json().get('run', {}).get('output', '').strip()
-                expected = test.expected_output.strip()
+            question = get_object_or_404(DailyQuestion, id=question_id)
+            test_cases = question.test_cases.all()
+            
+            score = 0
+            total_cases = test_cases.count()
+            results = []
+
+            # Run against Central Piston Utility for every test case
+            for test in test_cases:
+                # CALL CENTRAL UTILITY
+                # This handles DevTunnel headers, Timeouts, and Errors automatically.
+                api_out = execute_code_piston(user_code, language, test.input_data)
                 
-                if api_out == expected:
+                # Normalize outputs
+                clean_actual = api_out.strip()
+                clean_expected = test.expected_output.strip()
+                
+                # Check match
+                if clean_actual == clean_expected:
                     score += 1
                     results.append(True)
                 else:
                     results.append(False)
-            except:
-                results.append(False)
 
-        # Update Streak
-        update_user_progress(request.user, question, score)
-        
-        return render(request, 'challenges/code_result_partial.html', {
-            'score': score, 
-            'results': results,
-            'total': total_cases
-        })
+            # Update Streak (Your existing logic)
+            # Ensure update_user_progress is imported or defined in this file
+            if 'update_user_progress' in globals():
+                update_user_progress(request.user, question, score)
+            
+            return render(request, 'challenges/code_result_partial.html', {
+                'score': score, 
+                'results': results,
+                'total': total_cases
+            })
+
+        except Exception as e:
+            # Handle JSON errors or other unexpected crashes
+            return render(request, 'challenges/code_result_partial.html', {
+                'score': 0,
+                'results': [],
+                'total': 0,
+                'error': str(e)
+            })
 
 def update_user_progress(user, question, score):
     # 1. Prevent Duplicate Submission

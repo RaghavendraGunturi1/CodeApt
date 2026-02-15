@@ -167,8 +167,16 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .utils import execute_code_piston  # Import the helper
+
 @csrf_exempt
 def run_code(request):
+    """
+    API endpoint for the 'Run' button in Frontend (Exam/Playground)
+    """
     if request.method == "POST":
         try:
             data = json.loads(request.body)
@@ -176,39 +184,11 @@ def run_code(request):
             language = data.get('language', 'python')
             input_data = data.get('input', '')
 
-            # Map your frontend languages to Piston API versions
-            # Piston supports: python, java, c++, javascript, etc.
-            language_map = {
-                'python': {'language': 'python', 'version': '3.10.0'},
-                'java': {'language': 'java', 'version': '15.0.2'},
-                'cpp': {'language': 'c++', 'version': '10.2.0'},
-                'c': {'language': 'c', 'version': '10.2.0'},  # <--- ADDED C HERE
-                'javascript': {'language': 'javascript', 'version': '18.15.0'},
-            }
-            
-            config = language_map.get(language, language_map['python'])
-
-            # Prepare payload for Piston API
-            payload = {
-                "language": config['language'],
-                "version": config['version'],
-                "files": [
-                    {
-                        "content": code
-                    }
-                ],
-                "stdin": input_data
-            }
-
-            # Send to Piston (Free Public API)
-            response = requests.post('https://emkc.org/api/v2/piston/execute', json=payload)
-            result = response.json()
-            
-            output = result.get('run', {}).get('output', '')
+            output = execute_code_piston(code, language, input_data)
             return JsonResponse({'output': output})
 
         except Exception as e:
-            return JsonResponse({'output': f"Error: {str(e)}"}, status=500)
+            return JsonResponse({'output': f"Server Error: {str(e)}"}, status=500)
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
 

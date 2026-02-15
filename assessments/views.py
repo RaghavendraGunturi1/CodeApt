@@ -5,22 +5,10 @@ from django.utils import timezone
 import json
 import requests 
 from .models import Exam, ExamSection, ExamQuestion, StudentExamAttempt, Topic
+from .models import ExamTestCase  # Ensure this is imported
 
-# --- HELPER: Code Execution ---
 def run_code_piston(code, lang, stdin):
-    try:
-        payload = {
-            "language": lang,
-            "version": "3.10.0",
-            "files": [{"content": code}],
-            "stdin": stdin
-        }
-        resp = requests.post('https://emkc.org/api/v2/piston/execute', json=payload)
-        return resp.json().get('run', {}).get('output', '').strip()
-    except:
-        return ""
-
-# --- VIEWS ---
+    return execute_code_piston(code, lang, stdin)
 
 # In assessments/views.py
 
@@ -184,19 +172,21 @@ def submit_section(request, attempt_id):
             'message': f'Server Error: {str(e)}'
         }, status=500)
 
+from core.utils import execute_code_piston
 def calculate_final_score(attempt):
     total_obtained = 0
     
+    # 0. Safety Check: If no data, fail immediately
     if not attempt.response_data:
         attempt.score = 0
         attempt.passed = False
         attempt.save()
         return
 
-    # 1. Extract Answers (Ignoring Metadata)
+    # 1. Extract Answers (CRITICAL FIX: Ignore Metadata)
     flat_answers = {}
     for sec_id, sec_data in attempt.response_data.items():
-        # CRITICAL FIX: Skip the metadata/warnings block
+        # Skip the metadata/warnings block to prevent "Field 'id' expected a number" error
         if sec_id == 'metadata':
             continue
             
@@ -204,26 +194,25 @@ def calculate_final_score(attempt):
             flat_answers.update(sec_data)
 
     # 2. Score Calculation
-    # We iterate through the ACTUAL questions in the exam to find their answers.
-    # This is safer than iterating the JSON keys directly.
+    # We iterate through ACTUAL questions in database to find their answers.
     questions = ExamQuestion.objects.filter(section__exam=attempt.exam)
     
     for q in questions:
-        # Get user answer safely (as string)
         user_ans = flat_answers.get(str(q.id))
         
+        # If user didn't answer this question, skip grading
         if not user_ans:
             continue
 
-        # Logic for checking answers
         is_correct = False
         
+        # --- A. MCQ SINGLE ---
         if q.q_type == 'MCQ_SINGLE':
             if str(user_ans) == str(q.correct_options):
                 is_correct = True
                 
+        # --- B. MCQ MULTI ---
         elif q.q_type == 'MCQ_MULTI':
-            # Handle list or comma-separated string
             if isinstance(user_ans, list):
                 u_opts = set(map(str, user_ans))
             else:
@@ -234,16 +223,42 @@ def calculate_final_score(attempt):
             if u_opts == c_opts:
                 is_correct = True
 
+        # --- C. CODING CHALLENGE (SECURE PISTON API) ---
         elif q.q_type == 'CODE':
-            # Coding questions usually require manual review or test case results
-            # For now, we assume if they passed test cases in frontend, they get marks.
-            # OR you rely on the 'passed_cases' if you stored that.
-            # If you want to auto-give marks for code submission:
-            if isinstance(user_ans, dict) and user_ans.get('code'):
-                # Simple logic: if code exists, give marks (or implement complex checking)
-                # Ideally, you stored 'passed' boolean in previous step.
-                is_correct = True 
+            user_code = ""
+            user_lang = "python" # Default fallback
+            
+            if isinstance(user_ans, dict):
+                user_code = user_ans.get('code', "")
+                user_lang = user_ans.get('language', "python")
+            
+            # Only grade if code exists and there are test cases
+            test_cases = ExamTestCase.objects.filter(question=q)
+            
+            if user_code and test_cases.exists():
+                all_cases_passed = True
+                
+                for tc in test_cases:
+                    # Run code using the secure external API (Piston)
+                    # This replaces the unsafe 'subprocess' logic
+                    actual_output = execute_code_piston(user_code, user_lang, tc.input_data)
+                    
+                    # Normalize outputs (strip whitespace/newlines for fair comparison)
+                    clean_actual = actual_output.strip()
+                    clean_expected = tc.expected_output.strip()
+                    
+                    # Compare
+                    if clean_actual != clean_expected:
+                        all_cases_passed = False
+                        break
+                
+                if all_cases_passed:
+                    is_correct = True
+            else:
+                # No code provided OR No test cases = 0 Marks
+                is_correct = False
 
+        # --- D. ADD MARKS ---
         if is_correct:
             total_obtained += q.marks
 
@@ -254,7 +269,7 @@ def calculate_final_score(attempt):
     total_marks = attempt.exam.total_marks
     if total_marks > 0:
         percentage = (total_obtained / total_marks) * 100
-        attempt.passed = percentage >= 40  # Change 40 to your pass mark
+        attempt.passed = percentage >= 40 
     else:
         attempt.passed = True
 
@@ -381,3 +396,60 @@ def attempt_detail(request, attempt_id):
         'warnings': warnings,           # <-- Added Context
         'is_malpractice': is_malpractice # <-- Added Context
     })
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+import json
+from .models import ExamQuestion, ExamTestCase
+from core.utils import execute_code_piston  # Ensure this is imported
+
+@csrf_exempt
+@login_required
+def run_question_test_cases(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            q_id = data.get('q_id')
+            code = data.get('code')
+            lang = data.get('language', 'python')
+
+            # 1. Get Question & Test Cases
+            question = ExamQuestion.objects.get(id=q_id)
+            test_cases = ExamTestCase.objects.filter(question=question)
+
+            if not test_cases.exists():
+                return JsonResponse({'error': 'No test cases found for this question.'})
+
+            results = []
+            all_passed = True
+
+            # 2. Run Each Test Case
+            for i, tc in enumerate(test_cases):
+                # Run code using Piston
+                actual_output = execute_code_piston(code, lang, tc.input_data)
+                
+                # Normalize (strip whitespace)
+                clean_actual = actual_output.strip()
+                clean_expected = tc.expected_output.strip()
+                
+                passed = (clean_actual == clean_expected)
+                if not passed:
+                    all_passed = False
+
+                results.append({
+                    'case_num': i + 1,
+                    'input': tc.input_data,
+                    'expected': clean_expected,
+                    'actual': clean_actual,
+                    'passed': passed
+                })
+
+            return JsonResponse({'status': 'success', 'results': results, 'all_passed': all_passed})
+
+        except ExamQuestion.DoesNotExist:
+            return JsonResponse({'error': 'Question not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid method'}, status=400)
