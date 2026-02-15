@@ -123,3 +123,8 @@ TIME_ZONE = 'Asia/Kolkata' # Matches your Hyderabad location
 USE_I18N = True
 USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# Change this to False if it is True
+SECURE_SSL_REDIRECT = False 
+
+# Add this to help Django understand it's behind the AWS proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
