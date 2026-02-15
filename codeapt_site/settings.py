@@ -1,29 +1,81 @@
-
-from pathlib import Path
-import dj_database_url # Add this
-from pathlib import Path
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 import os
+import dj_database_url
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# --- 1. SECURITY SETTINGS ---
+# Pulls from AWS Environment Variables for safety
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-default-key-change-this')
+
+# Set to False in AWS Environment
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+
+# Allow all hosts provided by AWS App Runner
+ALLOWED_HOSTS = ['codeapt.in', 'www.codeapt.in', 'localhost', '127.0.0.1', '.vercel.app', '.awsapprunner.com']
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# --- 2. DATABASE CONFIGURATION (NeonDB) ---
+# Uses dj-database-url to parse the single connection string
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600, # Keeps connections open for better performance
+        conn_health_checks=True,
+        ssl_require=True
+    )
+}
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_x%jgn0z=p6z_ac4j2$*v01(tpjx-f)^vi^()jt!2aw!jxt--3'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# --- 3. STORAGE CONFIGURATION (Cloudinary & Static) ---
+# WhiteNoise handles static files; Cloudinary handles your media/images
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
-ALLOWED_HOSTS = ['codeapt.in', 'www.codeapt.in', 'localhost', '127.0.0.1','.vercel.app']
+# Cloudinary credentials from Environment Variables
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_NAME'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+}
 
 
-# Application definition
+# --- 4. STATIC FILES (WhiteNoise) ---
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
+
+# --- 5. MIDDLEWARE ---
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Must be exactly here
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+
+# --- 6. PHONEPE CONFIGURATION ---
+PHONEPE_CLIENT_ID = os.environ.get("PHONEPE_CLIENT_ID")
+PHONEPE_CLIENT_SECRET = os.environ.get("PHONEPE_CLIENT_SECRET")
+PHONEPE_CLIENT_VERSION = int(os.environ.get("PHONEPE_CLIENT_VERSION", 1))
+PHONEPE_ENV = os.environ.get("PHONEPE_ENV", "SANDBOX")
+
+
+# --- REST OF YOUR CONFIGURATION ---
 INSTALLED_APPS = [
     'core',
-    'accounts',  # NEW: Your login system
+    'accounts',
     'curriculum',
     'challenges',
     'django.contrib.admin',
@@ -32,150 +84,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Add these two:
     'cloudinary_storage',
     'cloudinary',
     'assessments',
-    
-]
-
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # <--- ADD THIS LINE
 ]
 
 ROOT_URLCONF = 'codeapt_site.urls'
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
-
 WSGI_APPLICATION = 'codeapt_site.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-# Default to SQLite (Local)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
- #If running on Vercel (or if we set the link manually), use Cloud DB
-database_url = "postgresql://neondb_owner:npg_X5ntxVCyc9bQ@ep-icy-king-a121yr5z-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
-if database_url:
-    DATABASES["default"] = dj_database_url.parse(database_url)
-    DATABASES["default"]["OPTIONS"] = {
-        "sslmode": "require"
-    }
-
-
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
-
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
-USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_ROOT = BASE_DIR / 'staticfiles_build' / 'static'
-
-STATIC_URL = '/static/'
-
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-# Enable WhiteNoise storage
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-# NEW CONFIGURATION FOR DJANGO 5+
-STORAGES = {
-    # Media files (Images) -> Use Cloudinary
-    "default": {
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-    },
-    # Static files (CSS/JS) -> Use WhiteNoise
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-import os
-
-# ... other settings ...
-
-# --- PHONEPE CONFIGURATION (PRODUCTION READY) ---
-PHONEPE_CLIENT_ID = os.environ.get("PHONEPE_CLIENT_ID")
-PHONEPE_CLIENT_SECRET = os.environ.get("PHONEPE_CLIENT_SECRET")
-# PhonePe SDK Version & Environment
-PHONEPE_CLIENT_VERSION = int(os.environ.get("PHONEPE_CLIENT_VERSION", 1))
-
-# Switch automatically based on where code is running
-if os.environ.get("VERCEL_ENV") == "production":
-    PHONEPE_ENV = "PRODUCTION"
-else:
-    PHONEPE_ENV = "SANDBOX"
-# Cloud name	
-# dsut5kquw
-# API key	
-# 769874292495414
-# API secret	
-# wBf8ervMT-rczNWSGfNzI9r9Umo
-
-# API environment variable	
-CLOUDINARY_URL="cloudinary://769874292495414:wBf8ervMT-rczNWSGfNzI9r9Umo@dsut5kquw"
-
-# Cloudinary Storage
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'dsut5kquw', 
-    'API_KEY': '769874292495414', 
-    'API_SECRET': 'wBf8ervMT-rczNWSGfNzI9r9Umo'
-}
-
