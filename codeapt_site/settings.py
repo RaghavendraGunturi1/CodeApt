@@ -24,7 +24,6 @@ ALLOWED_HOSTS = [
 
 # Required for Django 4.0+ to allow logins and form submissions from your domain
 CSRF_TRUSTED_ORIGINS = [
-    '*',
     'https://codeapt.in',
     'https://www.codeapt.in',
     'https://5cmypptmab.us-east-1.awsapprunner.com'

@@ -165,19 +165,25 @@ class ExamAdmin(admin.ModelAdmin):
         form = ExamUploadForm()
         return render(request, "admin/exam_upload.html", {"form": form})
         
-# 3. Register Section Admin (Optional, but useful)
+# 3. Register Section Admin
 @admin.register(ExamSection)
 class ExamSectionAdmin(admin.ModelAdmin):
     list_display = ('name', 'exam', 'duration_minutes', 'order')
     list_filter = ('exam',)
     ordering = ('exam', 'order')
 
-# 4. Update Question Admin
+# 4. Final Question Admin Fix
 @admin.register(ExamQuestion)
 class ExamQuestionAdmin(admin.ModelAdmin):
-    # Updated 'exam' -> 'section' to match new model structure
-    list_display = ('text', 'q_type', 'section') 
-    list_filter = ('section', 'q_type')
+    # We use a function 'get_exam' to show the Exam name safely
+    list_display = ('text', 'q_type', 'section', 'get_exam') 
+    list_filter = ('section__exam', 'q_type', 'section') # Follow the relationship
     inlines = [TestCaseInline]
+
+    # This helper function allows you to see the Exam even though 
+    # the question is linked to a Section
+    def get_exam(self, obj):
+        return obj.section.exam.topic.name if obj.section and obj.section.exam.topic else "No Exam"
+    get_exam.short_description = 'Exam' # Sets the column name in Admin
 
 admin.site.register(StudentExamAttempt)
