@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from curriculum.models import Topic
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 
 class Exam(models.Model):
     topic = models.OneToOneField(Topic, on_delete=models.CASCADE, related_name='exam')
@@ -9,8 +10,12 @@ class Exam(models.Model):
     pass_percentage = models.IntegerField(default=50)
     # Note: 'duration_minutes' is removed here as it is now handled per section
     
+    # --- Fix 1: Inside the Exam class ---
     def __str__(self):
-        return self.topic.name
+        try:
+            return self.topic.name
+        except (AttributeError, ObjectDoesNotExist):
+            return f"Exam ID: {self.id} (Missing Topic)"
 
 class ExamSection(models.Model):
     """
@@ -26,8 +31,13 @@ class ExamSection(models.Model):
     class Meta:
         ordering = ['order']
 
+    # --- Fix 2: Inside the ExamSection class ---
     def __str__(self):
-        return f"{self.exam} - {self.name}"
+        try:
+            # We call str(self.exam) to trigger the defensive check above
+            return f"{self.exam} - {self.name}"
+        except Exception:
+            return f"Section: {self.name} (Orphaned)"
 
 class ExamQuestion(models.Model):
     TYPE_CHOICES = (
@@ -91,4 +101,7 @@ class StudentExamAttempt(models.Model):
     is_auto_submitted = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.user.username} - {self.exam.topic.name}"
+            try:
+                return f"{self.user.username} - {self.exam.topic.name}"
+            except Exception:
+                return f"Attempt by {self.user.username} (Exam Data Missing)"
