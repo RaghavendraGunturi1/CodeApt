@@ -85,7 +85,7 @@ WSGI_APPLICATION = 'codeapt_site.wsgi.application'
 # --- 4. DATABASE CONFIGURATION (NEON DB) ---
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
+        default=os.environ.get('DATABASE_URL') or "postgresql://neondb_owner:npg_X5ntxVCyc9bQ@ep-icy-king-a121yr5z-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
         conn_max_age=600,
         conn_health_checks=True,
         ssl_require=True

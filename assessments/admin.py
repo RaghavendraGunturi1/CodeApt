@@ -175,15 +175,23 @@ class ExamSectionAdmin(admin.ModelAdmin):
 # 4. Final Question Admin Fix
 @admin.register(ExamQuestion)
 class ExamQuestionAdmin(admin.ModelAdmin):
-    # We use a function 'get_exam' to show the Exam name safely
-    list_display = ('text', 'q_type', 'section', 'get_exam') 
-    list_filter = ('section__exam', 'q_type', 'section') # Follow the relationship
+
+    list_display = ('short_text', 'q_type', 'section', 'get_exam')
+    list_filter = ('section__exam', 'q_type', 'section')
     inlines = [TestCaseInline]
 
-    # This helper function allows you to see the Exam even though 
-    # the question is linked to a Section
+    # 🔥 IMPORTANT: Optimize queries
+    list_select_related = ('section', 'section__exam', 'section__exam__topic')
+
+    def short_text(self, obj):
+        return obj.text[:50] if obj.text else "Image Question"
+
     def get_exam(self, obj):
-        return obj.section.exam.topic.name if obj.section and obj.section.exam.topic else "No Exam"
-    get_exam.short_description = 'Exam' # Sets the column name in Admin
+        if obj.section and obj.section.exam and obj.section.exam.topic:
+            return obj.section.exam.topic.name
+        return "No Exam"
+
+    get_exam.short_description = 'Exam'
+
 
 admin.site.register(StudentExamAttempt)
