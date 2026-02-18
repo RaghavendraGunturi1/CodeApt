@@ -10,6 +10,9 @@ class Program(models.Model):
     def __str__(self):
         return self.name
 
+from django.db import models
+from django.utils.text import slugify
+
 class Subject(models.Model):
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='subjects')
     name = models.CharField(max_length=100)
@@ -21,6 +24,9 @@ class Subject(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text="If set, shows original price with strikethrough")
     is_popular = models.BooleanField(default=False) # To show a "Bestseller" badge
+    
+    # NEW VISIBILITY FIELD
+    is_visible = models.BooleanField(default=True, help_text="Toggle to show/hide subject on the website")
     
     def save(self, *args, **kwargs):
         if not self.slug:

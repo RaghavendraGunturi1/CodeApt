@@ -392,12 +392,13 @@ from curriculum.models import Subject  # Ensure this is imported
 
 def courses(request):
     """
-    Public Course Catalog Page.
+    Public Course Catalog Page - Only showing visible subjects.
     """
-    all_courses = Subject.objects.all()
+    # Use filter instead of all()
+    visible_courses = Subject.objects.filter(is_visible=True)
     
     context = {
-        'courses': all_courses
+        'courses': visible_courses
     }
     return render(request, 'core/courses.html', context)
 

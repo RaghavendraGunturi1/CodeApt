@@ -7,8 +7,17 @@ class ProgramAdmin(admin.ModelAdmin):
 
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ('name', 'program')
+    # Added visibility and popularity to the list view
+    list_display = ('name', 'program', 'price', 'is_visible', 'is_popular')
+    
+    # Allows you to toggle these directly in the list view
+    list_editable = ('is_visible', 'is_popular')
+    
     prepopulated_fields = {'slug': ('name',)}
+    
+    # Useful filters for managing content
+    list_filter = ('program', 'is_visible', 'is_popular')
+    search_fields = ('name',)
 
 from django.contrib import admin
 from django.urls import path
