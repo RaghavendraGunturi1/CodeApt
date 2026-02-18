@@ -402,22 +402,33 @@ def courses(request):
     }
     return render(request, 'core/courses.html', context)
 
+
+from django.shortcuts import render, get_object_or_404
+from curriculum.models import Subject, Module, Topic, Enrollment
+from django.db.models import Prefetch
+
 def course_landing(request, slug):
     """
-    Public Course Landing Page (Sales Page).
+    Public Course Landing Page - Module based structure.
     """
-    course = get_object_or_404(Subject, slug=slug)
-    topics = course.topics.all().order_by('order')
+    subject = get_object_or_404(Subject, slug=slug)
     
-    # CHECK IF ENROLLED (Crucial for the Button Logic)
+    # 1. Fetch Modules related to this subject
+    # Prefetch topics to keep the page fast
+    modules = Module.objects.filter(subject=subject).prefetch_related(
+        Prefetch('topics', queryset=Topic.objects.order_by('order'))
+    ).order_by('order')
+
+    # 2. Check Enrollment
     is_enrolled = False
     if request.user.is_authenticated:
-        is_enrolled = Enrollment.objects.filter(user=request.user, subject=course).exists()
+        is_enrolled = Enrollment.objects.filter(user=request.user, subject=subject).exists()
     
     context = {
-        'course': course,
-        'topics': topics,
-        'is_enrolled': is_enrolled # This passes True/False to the template
+        'subject': subject,
+        'modules': modules,
+        'topics_count': Topic.objects.filter(subject=subject).count(),
+        'is_enrolled': is_enrolled
     }
     return render(request, 'core/course_landing.html', context)
 
