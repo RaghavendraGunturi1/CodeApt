@@ -14,9 +14,8 @@ class Profile(models.Model):
     full_name = models.CharField(max_length=100, blank=True, help_text="Name to appear on Certificates")
     college_name = models.CharField(max_length=200, blank=True)
     phone_number = models.CharField(max_length=15, blank=True)
+    state = models.CharField(max_length=100, blank=True, null=True) # Added State
     bio = models.TextField(max_length=500, blank=True)
-    
-    # We will use a URL for the avatar for now to avoid complex S3 setup on Vercel
     avatar_url = models.URLField(blank=True, max_length=500, default="https://ui-avatars.com/api/?background=0D8ABC&color=fff&name=User")
 
     def __str__(self):

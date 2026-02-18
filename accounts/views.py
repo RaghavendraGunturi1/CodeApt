@@ -22,17 +22,32 @@ def login_view(request):
     form = AuthenticationForm()
     return render(request, 'accounts/login.html', {'form': form})
 
+from .forms import StudentRegisterForm
+from core.models import Profile
+
 def register_view(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = StudentRegisterForm(request.POST)
         if form.is_valid():
+            # 1. Save the User
             user = form.save()
+            
+            # 2. Update/Create the Profile
+            # Use get_or_create to avoid errors if a profile signal already exists
+            profile, created = Profile.objects.get_or_create(user=user)
+            profile.full_name = form.cleaned_data.get('full_name')
+            profile.college_name = form.cleaned_data.get('college_name')
+            profile.phone_number = form.cleaned_data.get('phone_number')
+            profile.state = form.cleaned_data.get('state')
+            profile.save()
+
             username = form.cleaned_data.get('username')
             messages.success(request, f"Account created for {username}! You can now log in.")
             return redirect('login')
     else:
-        form = UserCreationForm()
+        form = StudentRegisterForm()
     return render(request, 'accounts/register.html', {'form': form})
+
 
 def logout_view(request):
     logout(request)
