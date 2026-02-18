@@ -8,17 +8,21 @@ class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
     verbose_name_plural = 'Extra Student Info'
-    fields = ('full_name', 'college_name', 'phone_number', 'state', 'bio', 'avatar_url')
+    fields = ('full_name','roll_number','college_name', 'phone_number', 'state', 'bio', 'avatar_url')
 
 # 2. Customizing the User list view to show your new data
 class UserAdmin(BaseUserAdmin):
     inlines = (ProfileInline,)
-    list_display = ('username', 'email', 'get_college', 'get_state', 'is_active')
+    list_display = ('username', 'email', 'get_college', 'get_roll_number', 'get_state', 'is_active')
     list_filter = ('is_staff', 'is_superuser', 'profile__state') # Filter by State!
 
     def get_college(self, obj):
         return obj.profile.college_name if hasattr(obj, 'profile') else "-"
     get_college.short_description = 'College'
+
+    def get_roll_number(self, obj):
+        return obj.profile.roll_number if hasattr(obj, 'profile') else "-"
+    get_roll_number.short_description = 'Roll Number'
 
     def get_state(self, obj):
         return obj.profile.state if hasattr(obj, 'profile') else "-"

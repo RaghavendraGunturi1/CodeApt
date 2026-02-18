@@ -36,6 +36,7 @@ def register_view(request):
             # Use get_or_create to avoid errors if a profile signal already exists
             profile, created = Profile.objects.get_or_create(user=user)
             profile.full_name = form.cleaned_data.get('full_name')
+            profile.roll_number = form.cleaned_data.get('roll_number') # Save it here
             profile.college_name = form.cleaned_data.get('college_name')
             profile.phone_number = form.cleaned_data.get('phone_number')
             profile.state = form.cleaned_data.get('state')

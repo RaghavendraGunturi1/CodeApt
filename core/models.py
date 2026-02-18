@@ -13,6 +13,7 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     full_name = models.CharField(max_length=100, blank=True, help_text="Name to appear on Certificates")
     college_name = models.CharField(max_length=200, blank=True)
+    roll_number = models.CharField(max_length=50, blank=True, null=True, help_text="University Roll Number")
     phone_number = models.CharField(max_length=15, blank=True)
     state = models.CharField(max_length=100, blank=True, null=True) # Added State
     bio = models.TextField(max_length=500, blank=True)
