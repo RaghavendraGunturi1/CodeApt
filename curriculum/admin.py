@@ -1,9 +1,20 @@
 from django.contrib import admin
 from .models import Program, Subject, Topic
+# Check your top import line and add Enrollment
+from .models import (
+    Program, Subject, Topic, Question, Choice, 
+    TopicProgress, Module, Enrollment, Job, JobApplication
+)
 
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
     list_display = ('name',)
+
+# Add this above SubjectAdmin
+class EnrollmentInline(admin.TabularInline):
+    model = Enrollment
+    extra = 1  # Allows you to manually add a student via a new row
+    autocomplete_fields = ['user']  # Recommended if you have many users
 
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
@@ -18,6 +29,11 @@ class SubjectAdmin(admin.ModelAdmin):
     # Useful filters for managing content
     list_filter = ('program', 'is_visible', 'is_popular')
     search_fields = ('name',)
+    inlines = [EnrollmentInline]
+    # Optional: Shows the number of students in the list view
+    def student_count(self, obj):
+        return obj.enrollments.count() # Assumes related_name='enrollments' in your model
+    student_count.short_description = "Students"
 
 from django.contrib import admin
 from django.urls import path
@@ -157,3 +173,10 @@ class ModuleAdmin(admin.ModelAdmin):
     list_display = ('name', 'subject')
     list_filter = ('subject',)
     search_fields = ('name',)
+
+@admin.register(Enrollment)
+class EnrollmentAdmin(admin.ModelAdmin):
+    list_display = ('user', 'subject', 'enrolled_at')
+    list_filter = ('subject', 'enrolled_at')
+    search_fields = ('user__username', 'user__email', 'subject__name')
+    autocomplete_fields = ['user', 'subject']
