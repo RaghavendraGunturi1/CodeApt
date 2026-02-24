@@ -251,42 +251,103 @@ class PublicExamLinkAdmin(admin.ModelAdmin):
     def export_link_results(self, request, link_id):
         link = get_object_or_404(PublicExamLink, id=link_id)
 
+        exam = link.exam
+
         attempts = StudentExamAttempt.objects.filter(
             public_link=link,
             completed_at__isnull=False
-        ).order_by('-score')
+        ).order_by('-score', 'completed_at')
+
+        sections = exam.sections.prefetch_related('questions').all()
 
         workbook = openpyxl.Workbook()
         sheet = workbook.active
         sheet.title = "Public Results"
 
-        sheet.append([
-            "Rank",
-            "Roll Number",
-            "College",
-            "Score",
-            "Passed",
-            "Completed At"
-        ])
+        # ------------------------------
+        # 1️⃣ Build Dynamic Header
+        # ------------------------------
+        header = ["Rank", "Roll Number", "College"]
 
+        section_totals = {}
+
+        for section in sections:
+            total_marks = sum(q.marks for q in section.questions.all())
+            section_totals[section.id] = total_marks
+            header.append(f"{section.name} ({total_marks})")
+
+        header += [f"Total ({exam.total_marks})", "Passed", "Completed At"]
+
+        sheet.append(header)
+
+        # ------------------------------
+        # 2️⃣ Fill Rows
+        # ------------------------------
         rank = 1
+
         for attempt in attempts:
-            sheet.append([
-                rank,
-                attempt.roll_number or "",
-                attempt.college_name or "",
+
+            # Flatten answers
+            flat_answers = {}
+            if attempt.response_data:
+                for sec_id, sec_data in attempt.response_data.items():
+                    if sec_id != "metadata" and isinstance(sec_data, dict):
+                        flat_answers.update(sec_data)
+
+            row = [rank, attempt.roll_number or "", attempt.college_name or ""]
+
+            # Section-wise scoring
+            for section in sections:
+                section_score = 0
+
+                for question in section.questions.all():
+                    user_ans = flat_answers.get(str(question.id))
+                    if not user_ans:
+                        continue
+
+                    is_correct = False
+
+                    # MCQ Single
+                    if question.q_type == "MCQ_SINGLE":
+                        if str(user_ans) == str(question.correct_options):
+                            is_correct = True
+
+                    # MCQ Multi
+                    elif question.q_type == "MCQ_MULTI":
+                        user_set = set(str(user_ans).split(","))
+                        correct_set = set(str(question.correct_options).split(","))
+                        if user_set == correct_set:
+                            is_correct = True
+
+                    # Coding
+                    elif question.q_type == "CODE":
+                        # Coding already calculated in final score.
+                        # If full accuracy needed, section score can be stored during submission.
+                        continue
+
+                    if is_correct:
+                        section_score += question.marks
+
+                row.append(section_score)
+
+            row += [
                 attempt.score,
                 "PASS" if attempt.passed else "FAIL",
                 attempt.completed_at.strftime("%Y-%m-%d %H:%M") if attempt.completed_at else ""
-            ])
+            ]
+
+            sheet.append(row)
             rank += 1
 
+        # ------------------------------
+        # 3️⃣ Return File
+        # ------------------------------
         response = HttpResponse(
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        filename = f"{link.exam.topic.name}_Link_{link.id}_Results.xlsx"
-        response['Content-Disposition'] = f'attachment; filename={filename}'
+        filename = f"{exam.topic.name}_Section_Wise_Results.xlsx"
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
         workbook.save(response)
         return response
