@@ -16,4 +16,14 @@ urlpatterns = [
     path('history/', views.exam_history, name='exam_history'),
     path('result/<int:attempt_id>/', views.attempt_detail, name='attempt_detail'),
     path('run-test-cases/', views.run_question_test_cases, name='run_test_cases'),
+    path(
+        'public/<uuid:token>/',
+        views.public_exam_entry,
+        name='public_exam_entry'
+    ),
+    path(
+        'public-start/<int:attempt_id>/',
+        views.public_start_exam,
+        name='public_start_exam'
+    ),
 ]

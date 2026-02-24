@@ -17,6 +17,32 @@ class Exam(models.Model):
         except (AttributeError, ObjectDoesNotExist):
             return f"Exam ID: {self.id} (Missing Topic)"
 
+
+import uuid
+
+class PublicExamLink(models.Model):
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
+    access_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+
+    is_active = models.BooleanField(default=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_available(self):
+        now = timezone.now()
+        if not self.is_active:
+            return False
+        if self.start_time and now < self.start_time:
+            return False
+        if self.end_time and now > self.end_time:
+            return False
+        return True
+
+    def __str__(self):
+        return f"Public Link - {self.exam.topic.name}"
+
 class ExamSection(models.Model):
     """
     Groups questions into time-bound sections.
@@ -51,7 +77,14 @@ class ExamQuestion(models.Model):
     
     q_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     text = models.TextField(blank=True, null=True, help_text="Question text (Optional if using an image)")
-    image = models.ImageField(upload_to='exam_images/', blank=True, null=True, help_text="Upload an image if the question requires one (e.g. Geometry figures)")
+    from cloudinary_storage.storage import MediaCloudinaryStorage
+
+    image = models.ImageField(
+        upload_to='exam_images/',
+        storage=MediaCloudinaryStorage(),
+        blank=True,
+        null=True
+    )
     marks = models.IntegerField(default=5)
     
     # Options for MCQs
@@ -79,29 +112,59 @@ class ExamTestCase(models.Model):
     expected_output = models.TextField()
 
 class StudentExamAttempt(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    # 🔥 NEW: Track which public link created this attempt
+    public_link = models.ForeignKey(
+        'PublicExamLink',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attempts"
+    )
+
+    # Public fields
+    roll_number = models.CharField(max_length=100, null=True, blank=True)
+    college_name = models.CharField(max_length=255, null=True, blank=True)
+
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
-    
+
     started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    
+
     score = models.FloatField(default=0.0)
     passed = models.BooleanField(default=False)
-    
-    # NEW: Section Tracking Logic
-    current_section = models.ForeignKey(ExamSection, on_delete=models.SET_NULL, null=True, blank=True)
+
+    current_section = models.ForeignKey(
+        ExamSection,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
     section_start_time = models.DateTimeField(null=True, blank=True)
-    
-    # Storage for user answers
-    # Structure: { "section_id": { "question_id": "answer_value" } }
-    response_data = models.JSONField(default=dict, blank=True, help_text="Stores structured user answers")
-    
-    # Proctoring Data
+
+    response_data = models.JSONField(default=dict, blank=True)
+
     warnings_triggered = models.IntegerField(default=0)
     is_auto_submitted = models.BooleanField(default=False)
 
+    # 🔥 Helper property (clean public detection)
+    @property
+    def is_public(self):
+        return self.user is None
+
     def __str__(self):
-            try:
-                return f"{self.user.username} - {self.exam.topic.name}"
-            except Exception:
-                return f"Attempt by {self.user.username} (Exam Data Missing)"
+        if self.user:
+            user_part = self.user.username
+        else:
+            user_part = f"Public({self.roll_number})"
+
+        exam_part = self.exam.topic.name if self.exam and self.exam.topic else "Unknown Exam"
+
+        return f"{user_part} - {exam_part}"

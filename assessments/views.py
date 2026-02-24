@@ -4,8 +4,15 @@ from django.http import JsonResponse
 from django.utils import timezone
 import json
 import requests 
-from .models import Exam, ExamSection, ExamQuestion, StudentExamAttempt, Topic
-from .models import ExamTestCase  # Ensure this is imported
+from .models import (
+    Exam,
+    ExamSection,
+    ExamQuestion,
+    StudentExamAttempt,
+    Topic,
+    ExamTestCase,
+    PublicExamLink  # ← ADD THIS
+)
 
 def run_code_piston(code, lang, stdin):
     return execute_code_piston(code, lang, stdin)
@@ -66,34 +73,55 @@ def start_exam(request, topic_id):
 # In assessments/views.py
 
 
-@login_required
 def submit_section(request, attempt_id):
     try:
-        attempt = get_object_or_404(StudentExamAttempt, id=attempt_id, user=request.user)
+        attempt = get_object_or_404(StudentExamAttempt, id=attempt_id)
+
+        # ===============================
+        # 1️⃣ AUTH VALIDATION
+        # ===============================
+
+        # Logged-in attempt
+        if attempt.user:
+            if not request.user.is_authenticated or attempt.user != request.user:
+                return JsonResponse({'status': 'error'}, status=403)
+
+        # Public attempt
+        else:
+            session_attempt = request.session.get("public_attempt_id")
+            if session_attempt != attempt.id:
+                return JsonResponse({'status': 'error'}, status=403)
+
         current_section = attempt.current_section
-        
+
+        # If already completed → show result
         if attempt.completed_at:
             return redirect('attempt_detail', attempt_id=attempt.id)
-        
-        if not current_section:
-            return redirect('dashboard')
 
-        # 1. Parse Request Data
+        if not current_section:
+            return JsonResponse({'status': 'error', 'message': 'No active section'}, status=400)
+
+        # ===============================
+        # 2️⃣ PARSE REQUEST DATA
+        # ===============================
+
         new_answers = {}
         warnings = 0
-        force_end_exam = False 
+        force_end_exam = False
 
         if request.method == "POST":
             try:
                 data = json.loads(request.body)
                 new_answers = data.get('answers', {})
-                warnings = int(data.get('warnings', 0)) # Ensure integer
+                warnings = int(data.get('warnings', 0))
                 force_end_exam = data.get('force_end', False)
             except (json.JSONDecodeError, TypeError):
-                print("Warning: Failed to parse JSON body")
-        
-        # 2. Safe JSON Field Handling (CRITICAL FIX)
-        # Handle case where field is None, Empty String, or encoded JSON String
+                return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+        # ===============================
+        # 3️⃣ SAFE JSON FIELD HANDLING
+        # ===============================
+
         if not attempt.response_data:
             attempt.response_data = {}
         elif isinstance(attempt.response_data, str):
@@ -101,77 +129,84 @@ def submit_section(request, attempt_id):
                 attempt.response_data = json.loads(attempt.response_data)
             except:
                 attempt.response_data = {}
-        
-        # Ensure it is definitely a dict now
+
         if not isinstance(attempt.response_data, dict):
             attempt.response_data = {}
 
-        # 3. Save Metadata (Warnings)
-        if 'metadata' not in attempt.response_data:
-            attempt.response_data['metadata'] = {}
-        
-        # Get existing warnings safely
-        metadata = attempt.response_data['metadata']
+        # ===============================
+        # 4️⃣ STORE WARNINGS
+        # ===============================
+
+        metadata = attempt.response_data.get('metadata', {})
         current_stored = metadata.get('warnings', 0)
         metadata['warnings'] = max(current_stored, warnings)
-        
-        attempt.response_data['metadata'] = metadata # Re-assign to ensure save
+        attempt.response_data['metadata'] = metadata
 
-        # 4. Save Answers
+        # ===============================
+        # 5️⃣ SAVE ANSWERS
+        # ===============================
+
         if new_answers:
             attempt.response_data[str(current_section.id)] = new_answers
-        
-        attempt.save() 
-        
-        # 5. Logic: Next Section or Finish?
+
+        attempt.save()
+
+        # ===============================
+        # 6️⃣ NEXT SECTION OR FINISH
+        # ===============================
+
         next_section = None
         if not force_end_exam:
             next_section = ExamSection.objects.filter(
-                exam=attempt.exam, 
+                exam=attempt.exam,
                 order__gt=current_section.order
             ).order_by('order').first()
 
+        # -------------------------------
+        # ➜ GO TO NEXT SECTION
+        # -------------------------------
         if next_section:
             attempt.current_section = next_section
             attempt.section_start_time = timezone.now()
             attempt.save()
-            
-            if request.method == "POST":
-                return JsonResponse({
-                    'status': 'next_section', 
-                    'redirect_url': f'/assessments/start/{attempt.exam.topic.id}/'
-                })
+
+            # 🔥 FIX: Separate redirect for public vs logged-in
+            if attempt.user:
+                redirect_url = f'/assessments/start/{attempt.exam.topic.id}/'
             else:
-                return redirect('start_exam', topic_id=attempt.exam.topic.id)
+                redirect_url = f'/assessments/public-start/{attempt.id}/'
+
+            return JsonResponse({
+                'status': 'next_section',
+                'redirect_url': redirect_url
+            })
+
+        # -------------------------------
+        # ➜ FINISH EXAM
+        # -------------------------------
         else:
-            # FINISH EXAM
             attempt.completed_at = timezone.now()
-            attempt.current_section = None 
+            attempt.current_section = None
             attempt.save()
-            
-            # Ensure this function exists and works!
-            if 'calculate_final_score' in globals():
-                calculate_final_score(attempt)
-            
-            redirect_url = f'/assessments/result/{attempt.id}/'
-            
-            if request.method == "POST":
-                return JsonResponse({'status': 'finished', 'redirect_url': redirect_url})
-            else:
-                return redirect('attempt_detail', attempt_id=attempt.id)
+
+            calculate_final_score(attempt)
+
+            return JsonResponse({
+                'status': 'finished',
+                'redirect_url': f'/assessments/result/{attempt.id}/'
+            })
 
     except Exception as e:
-        # LOG THE ERROR so you can see it in the terminal
         print(f"CRITICAL ERROR in submit_section: {str(e)}")
         import traceback
         traceback.print_exc()
-        
-        # Return JSON error to frontend
+
         return JsonResponse({
             'status': 'error',
             'message': f'Server Error: {str(e)}'
         }, status=500)
 
+    
 from core.utils import execute_code_piston
 def calculate_final_score(attempt):
     total_obtained = 0
@@ -319,66 +354,107 @@ def exam_history(request):
     return render(request, 'assessments/exam_history.html', {'attempts': attempts})
 
 
-@login_required
 def attempt_detail(request, attempt_id):
     """Detailed Report Card"""
-    attempt = get_object_or_404(StudentExamAttempt, id=attempt_id, user=request.user)
-    
-    # Get all questions across all sections for this exam
-    questions = ExamQuestion.objects.filter(section__exam=attempt.exam).order_by('section__order', 'id')
-    
+
+    attempt = get_object_or_404(StudentExamAttempt, id=attempt_id)
+
+    # ===============================
+    # 🔐 ACCESS VALIDATION
+    # ===============================
+
+    # Case 1: Logged-in attempt
+    if attempt.user:
+        if not request.user.is_authenticated or attempt.user != request.user:
+            return redirect("dashboard")
+
+    # Case 2: Public attempt
+    else:
+        session_attempt = request.session.get("public_attempt_id")
+        if session_attempt != attempt.id:
+            return redirect("dashboard")
+
+    # ===============================
+    # FETCH QUESTIONS
+    # ===============================
+
+    questions = ExamQuestion.objects.filter(
+        section__exam=attempt.exam
+    ).order_by('section__order', 'id')
+
     # --- 1. Parse Response Data & Extract Warnings ---
     flat_answers = {}
     warnings = 0
-    
+
     if attempt.response_data:
-        # Check for Metadata (Warnings)
         if 'metadata' in attempt.response_data:
             warnings = attempt.response_data['metadata'].get('warnings', 0)
-        
-        # Flatten answers (IMPORTANT: Skip 'metadata' key)
+
         for sec_id, sec_data in attempt.response_data.items():
             if sec_id != 'metadata' and isinstance(sec_data, dict):
                 flat_answers.update(sec_data)
 
-    # Check for Malpractice (Threshold > 2)
     is_malpractice = warnings > 2
 
     # --- 2. Build Report ---
     report = []
-    
+
     for q in questions:
         user_ans = flat_answers.get(str(q.id))
         is_correct = False
         correct_display = q.correct_options
         user_display = user_ans
 
-        # Display Logic
+        # -----------------------
+        # MCQ SINGLE
+        # -----------------------
         if q.q_type == 'MCQ_SINGLE':
-            options = {'1': q.option_1, '2': q.option_2, '3': q.option_3, '4': q.option_4}
+            options = {
+                '1': q.option_1,
+                '2': q.option_2,
+                '3': q.option_3,
+                '4': q.option_4
+            }
+
             correct_display = options.get(str(q.correct_options), "N/A")
             user_display = options.get(str(user_ans), "Not Attempted")
-            if str(user_ans) == str(q.correct_options): is_correct = True
-            
+
+            if str(user_ans) == str(q.correct_options):
+                is_correct = True
+
+        # -----------------------
+        # MCQ MULTI
+        # -----------------------
         elif q.q_type == 'MCQ_MULTI':
-            options = {'1': q.option_1, '2': q.option_2, '3': q.option_3, '4': q.option_4}
+            options = {
+                '1': q.option_1,
+                '2': q.option_2,
+                '3': q.option_3,
+                '4': q.option_4
+            }
+
             c_opts = str(q.correct_options).split(',')
             correct_display = ", ".join([options.get(o, o) for o in c_opts])
-            
+
             if user_ans:
                 u_opts = user_ans if isinstance(user_ans, list) else [user_ans]
                 user_display = ", ".join([options.get(str(o), str(o)) for o in u_opts])
-                # Sort both lists to compare sets correctly
-                if set(map(str, c_opts)) == set(map(str, u_opts)): is_correct = True
+
+                if set(map(str, c_opts)) == set(map(str, u_opts)):
+                    is_correct = True
             else:
                 user_display = "Not Attempted"
 
+        # -----------------------
+        # CODING
+        # -----------------------
         elif q.q_type == 'CODE':
-            is_correct = None 
+            is_correct = None
             if isinstance(user_ans, dict):
                 user_display = user_ans.get('code', "No Code")
             else:
                 user_display = "No Code"
+
             correct_display = "N/A (Coding)"
 
         report.append({
@@ -387,15 +463,16 @@ def attempt_detail(request, attempt_id):
             'correct_answer': correct_display,
             'is_correct': is_correct,
             'type': q.q_type,
-            'section_name': q.section.name 
+            'section_name': q.section.name
         })
 
     return render(request, 'assessments/attempt_detail.html', {
-        'attempt': attempt, 
+        'attempt': attempt,
         'report': report,
-        'warnings': warnings,           # <-- Added Context
-        'is_malpractice': is_malpractice # <-- Added Context
+        'warnings': warnings,
+        'is_malpractice': is_malpractice
     })
+
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -453,3 +530,107 @@ def run_question_test_cases(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid method'}, status=400)
+
+
+def public_start_exam(request, attempt_id):
+    attempt = get_object_or_404(StudentExamAttempt, id=attempt_id)
+
+    exam = attempt.exam
+
+    if not attempt.current_section:
+        first_section = exam.sections.order_by('order').first()
+        attempt.current_section = first_section
+        attempt.section_start_time = timezone.now()
+        attempt.save()
+
+    elapsed = (timezone.now() - attempt.section_start_time).total_seconds()
+    duration_sec = attempt.current_section.duration_minutes * 60
+    time_left = max(0, duration_sec - elapsed)
+
+    next_section_exists = ExamSection.objects.filter(
+        exam=exam,
+        order__gt=attempt.current_section.order
+    ).exists()
+
+    context = {
+        'exam': exam,
+        'section': attempt.current_section,
+        'questions': attempt.current_section.questions.all(),
+        'attempt': attempt,
+        'time_left': int(time_left),
+        'total_sections': exam.sections.count(),
+        'current_section_index': list(exam.sections.order_by('order')).index(attempt.current_section) + 1,
+        'is_last_section': not next_section_exists,
+    }
+
+    return render(request, 'assessments/take_section_exam.html', context)
+
+def public_exam_entry(request, token):
+    link = get_object_or_404(PublicExamLink, access_token=token)
+
+    if not link.is_available():
+        return render(request, "assessments/error.html", {
+            "message": "Exam is not available."
+        })
+
+    if request.method == "POST":
+        roll = request.POST.get("roll_number")
+        college = request.POST.get("college_name")
+
+        attempt = StudentExamAttempt.objects.create(
+            exam=link.exam,
+            public_link=link,   # 🔥 IMPORTANT
+            roll_number=roll,
+            college_name=college
+        )
+
+        request.session["public_attempt_id"] = attempt.id
+
+        return redirect("public_start_exam", attempt_id=attempt.id)
+
+    return render(request, "assessments/public_exam_entry.html", {
+        "exam": link.exam
+    })
+
+import openpyxl
+from django.http import HttpResponse
+
+@login_required
+def export_exam_results(request, exam_id):
+    exam = Exam.objects.get(id=exam_id)
+
+    attempts = StudentExamAttempt.objects.filter(
+        exam=exam,
+        completed_at__isnull=False
+    )
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Results"
+
+    sheet.append([
+        "Roll Number",
+        "College",
+        "Username",
+        "Score",
+        "Passed",
+        "Completed At"
+    ])
+
+    for a in attempts:
+        sheet.append([
+            a.roll_number or "",
+            a.college_name or "",
+            a.user.username if a.user else "",
+            a.score,
+            a.passed,
+            a.completed_at.strftime("%Y-%m-%d %H:%M") if a.completed_at else ""
+        ])
+
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response['Content-Disposition'] = f'attachment; filename={exam.topic.name}_results.xlsx'
+
+    workbook.save(response)
+    return response

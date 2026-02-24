@@ -10,6 +10,12 @@ import re  # <--- REQUIRED: Add this import at the top of your file if missing
 import requests
 from django.utils.safestring import mark_safe # <--- IMPORTANT NEW IMPORT
 from django.core.files.base import ContentFile
+from .models import PublicExamLink
+from django.utils.html import format_html
+import openpyxl
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from .models import PublicExamLink, StudentExamAttempt
 
 # 1. Inline for Test Cases (unchanged)
 class TestCaseInline(admin.TabularInline):
@@ -23,16 +29,24 @@ class SectionInline(admin.TabularInline):
 
 @admin.register(Exam)
 class ExamAdmin(admin.ModelAdmin):
-    list_display = ('topic', 'total_marks')  # Removed duration_minutes (now in sections)
+    list_display = ('topic', 'total_marks')  # ✅ ADD THIS
     inlines = [SectionInline]                # Add Sections here
     change_list_template = "admin/assessments_changelist.html" 
 
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path('upload-exam-questions/', self.admin_site.admin_view(self.upload_excel), name='upload_exam_questions'),
+            path(
+                'upload-exam-questions/',
+                self.admin_site.admin_view(self.upload_excel),
+                name='upload_exam_questions'
+            ),
         ]
         return custom_urls + urls
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['export_public_url'] = f"{object_id}/export-public-results/"
+        return super().change_view(request, object_id, form_url, extra_context)
 
     def upload_excel(self, request):
         if request.method == "POST":
@@ -193,5 +207,111 @@ class ExamQuestionAdmin(admin.ModelAdmin):
 
     get_exam.short_description = 'Exam'
 
+@admin.register(PublicExamLink)
+class PublicExamLinkAdmin(admin.ModelAdmin):
+    list_display = (
+        'exam',
+        'is_active',
+        'view_link',
+        'export_results_button',
+        'created_at'
+    )
 
-admin.site.register(StudentExamAttempt)
+    list_filter = ('exam', 'is_active')
+
+    # ✅ Custom Admin URLs
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:link_id>/export-results/',
+                self.admin_site.admin_view(self.export_link_results),
+                name='public_link_export_results'
+            ),
+        ]
+        return custom_urls + urls
+
+    # ✅ Export Button (Correct URL)
+    def export_results_button(self, obj):
+        return format_html(
+            '<a class="button" href="{}">Export Results</a>',
+            f"/admin/assessments/publicexamlink/{obj.id}/export-results/"
+        )
+    export_results_button.short_description = "Export"
+
+    # ✅ Public Exam Link
+    def view_link(self, obj):
+        return format_html(
+            '<a href="/assessments/public/{}" target="_blank">Open Link</a>',
+            obj.access_token
+        )
+    view_link.short_description = "Public URL"
+
+    # ✅ Actual Export Logic (Per Link)
+    def export_link_results(self, request, link_id):
+        link = get_object_or_404(PublicExamLink, id=link_id)
+
+        attempts = StudentExamAttempt.objects.filter(
+            public_link=link,
+            completed_at__isnull=False
+        ).order_by('-score')
+
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = "Public Results"
+
+        sheet.append([
+            "Rank",
+            "Roll Number",
+            "College",
+            "Score",
+            "Passed",
+            "Completed At"
+        ])
+
+        rank = 1
+        for attempt in attempts:
+            sheet.append([
+                rank,
+                attempt.roll_number or "",
+                attempt.college_name or "",
+                attempt.score,
+                "PASS" if attempt.passed else "FAIL",
+                attempt.completed_at.strftime("%Y-%m-%d %H:%M") if attempt.completed_at else ""
+            ])
+            rank += 1
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        filename = f"{link.exam.topic.name}_Link_{link.id}_Results.xlsx"
+        response['Content-Disposition'] = f'attachment; filename={filename}'
+
+        workbook.save(response)
+        return response
+
+
+@admin.register(StudentExamAttempt)
+class StudentExamAttemptAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'exam',
+        'user',
+        'roll_number',
+        'college_name',
+        'score',
+        'passed',
+        'completed_at',
+        'is_public_attempt'
+    )
+
+    list_filter = ('exam', 'passed', 'completed_at')
+    search_fields = ('user__username', 'roll_number', 'college_name')
+    ordering = ('-completed_at',)
+
+    def is_public_attempt(self, obj):
+        return obj.user is None
+    is_public_attempt.boolean = True
+    is_public_attempt.short_description = "Public?"
+

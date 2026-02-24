@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container d-flex align-items-center justify-content-center min-vh-100">
+    <div class="card shadow-lg border-0 p-5" style="max-width: 600px; width: 100%;">
+        
+        <h2 class="fw-bold text-center mb-3">{{ exam.topic.name }}</h2>
+        <p class="text-muted text-center">
+            This is a public exam. Please enter your details carefully.
+        </p>
+
+        <hr>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Roll Number</label>
+                <input type="text" name="roll_number" class="form-control form-control-lg" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">College / University Name</label>
+                <input type="text" name="college_name" class="form-control form-control-lg" required>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-lg w-100 fw-bold">
+                Start Exam
+            </button>
+        </form>
+
+        <div class="mt-4 small text-muted">
+            <ul>
+                <li>Full-screen mode is mandatory.</li>
+                <li>Tab switching will trigger warnings.</li>
+                <li>Exceeding warnings will auto-submit the exam.</li>
+            </ul>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
