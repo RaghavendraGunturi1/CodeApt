@@ -540,8 +540,6 @@ def public_start_exam(request, attempt_id):
 
     if not attempt.current_section:
         first_section = exam.sections.order_by('order').first()
-        if not first_section:
-            return render(request, 'assessments/error.html', {'message': 'Exam configuration error: No sections found.'})
         attempt.current_section = first_section
         attempt.section_start_time = timezone.now()
         attempt.save()
