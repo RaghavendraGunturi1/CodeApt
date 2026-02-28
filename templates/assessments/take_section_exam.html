@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<div id="fullscreen-overlay" class="position-fixed top-0 start-0 w-100 h-100 bg-dark d-flex flex-column justify-content-center align-items-center" style="z-index: 10000; display: none;">
+<div id="fullscreen-overlay"
+    class="position-fixed top-0 start-0 w-100 h-100 bg-dark d-flex flex-column justify-content-center align-items-center"
+    style="z-index: 10000; display: none;">
     <div class="text-center text-white">
         <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 5rem;"></i>
         <h2 class="fw-bold mt-4">Exam Paused</h2>
@@ -10,23 +12,24 @@
     </div>
 </div>
 
-<div id="exam-container" class="bg-light min-vh-100 position-fixed top-0 start-0 w-100 h-100" style="z-index: 9999; overflow-y: hidden; display: none;">
-    
+<div id="exam-container" class="bg-light min-vh-100 position-fixed top-0 start-0 w-100 h-100"
+    style="z-index: 9999; overflow-y: hidden; display: none;">
+
     <div class="bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow" style="height: 60px;">
         <div class="d-flex align-items-center gap-3">
             <h5 class="m-0 text-truncate" style="max-width: 250px;">{{ exam.topic.name }}</h5>
             <span class="badge bg-warning text-dark">{{ section.name }}</span>
         </div>
-        
+
         <div class="d-flex gap-4 align-items-center">
             <div class="fs-5 fw-bold text-warning font-monospace">
                 <i class="bi bi-stopwatch"></i> <span id="timer">Loading...</span>
             </div>
             <button id="submit-btn" type="button" onclick="finishSection()" class="btn btn-success fw-bold btn-sm">
                 {% if is_last_section %}
-                    Submit Exam <i class="bi bi-check-circle-fill"></i>
+                Submit Exam <i class="bi bi-check-circle-fill"></i>
                 {% else %}
-                    Save & Next Section <i class="bi bi-chevron-right"></i>
+                Save & Next Section <i class="bi bi-chevron-right"></i>
                 {% endif %}
             </button>
         </div>
@@ -55,86 +58,132 @@
         <div class="flex-grow-1 p-4 overflow-auto" style="height: calc(100vh - 60px);">
             <form id="examForm">
                 {% for q in questions %}
-                <div class="question-card card shadow-sm border-0 mb-3" id="q_card_{{ forloop.counter0 }}" style="display: none;">
+                <div class="question-card card shadow-sm border-0 mb-3" id="q_card_{{ forloop.counter0 }}"
+                    style="display: none;">
                     <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between">
                         <span class="fw-bold text-secondary">Question {{ forloop.counter }}</span>
                         <span class="badge bg-secondary">{{ q.marks }} Marks</span>
                     </div>
                     <div class="card-body p-4">
-                        {% if q.text %} <h5 class="fw-bold mb-3" style="white-space: pre-wrap;">{{ q.text }}</h5> {% endif %}
+                        {% if q.text %} <h5 class="fw-bold mb-3" style="white-space: pre-wrap;">{{ q.text }}</h5> {%
+                        endif %}
                         {% if q.image %}
-                            <div class="mb-4 text-center">
-                                <img src="{{ q.image.url }}" class="img-fluid rounded border shadow-sm" style="max-height: 300px;">
-                            </div>
+                        <div class="mb-4 text-center">
+                            <img src="{{ q.image.url }}" class="img-fluid rounded border shadow-sm"
+                                style="max-height: 300px;">
+                        </div>
                         {% endif %}
 
                         {% if q.q_type == 'MCQ_SINGLE' %}
-                            <div class="d-flex flex-column gap-2">
-                                {% if q.option_1 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="1" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
-                                {% if q.option_2 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="2" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
-                                {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
-                                {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
-                            </div>
+                        <div class="d-flex flex-column gap-2">
+                            {% if q.option_1 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="1"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
+                            {% if q.option_2 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="2"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
+                            {% if q.option_3 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="3"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
+                            {% if q.option_4 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="4"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
+                        </div>
                         {% elif q.q_type == 'MCQ_MULTI' %}
-                            <div class="d-flex flex-column gap-2">
-                                {% if q.option_1 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="1" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
-                                {% if q.option_2 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="2" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
-                                {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
-                                {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
-                            </div>
+                        <div class="d-flex flex-column gap-2">
+                            {% if q.option_1 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="1"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
+                            {% if q.option_2 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="2"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
+                            {% if q.option_3 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="3"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
+                            {% if q.option_4 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="4"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
+                        </div>
                         {% elif q.q_type == 'CODE' %}
-                            <div class="mt-2" data-is-code="true" data-qid="{{q.id}}" data-index="{{ forloop.counter0 }}">
-                                <div class="row g-0 border rounded overflow-hidden">
-                                    
-                                    <div class="col-md-8 border-end">
-                                        <div id="editor_{{q.id}}" style="height: 400px; width: 100%;"></div>
-                                    </div>
-                                    
-                                    <div class="col-md-4 bg-light d-flex flex-column border-start" style="height: 400px;">
-                                        
-                                        <ul class="nav nav-tabs nav-fill bg-white border-bottom" id="codeTabs_{{q.id}}" role="tablist">
-                                            <li class="nav-item">
-                                                <button class="nav-link active small py-2 fw-bold" id="custom-tab-{{q.id}}" data-bs-toggle="tab" data-bs-target="#custom-content-{{q.id}}" type="button">Custom Input</button>
-                                            </li>
-                                            <li class="nav-item">
-                                                <button class="nav-link small py-2 fw-bold" id="results-tab-{{q.id}}" data-bs-toggle="tab" data-bs-target="#results-content-{{q.id}}" type="button">Test Results</button>
-                                            </li>
-                                        </ul>
+                        <div class="mt-2" data-is-code="true" data-qid="{{q.id}}" data-index="{{ forloop.counter0 }}">
+                            <div class="row g-0 border rounded overflow-hidden">
 
-                                        <div class="tab-content flex-grow-1 position-relative" id="codeTabContent_{{q.id}}">
-                                            
-                                            <div class="tab-pane fade show active position-absolute top-0 start-0 w-100 h-100 p-2 d-flex flex-column" id="custom-content-{{q.id}}">
-                                                <textarea id="input_{{q.id}}" class="form-control border-0 shadow-none mb-2 resize-none" style="flex-shrink: 0;" rows="3" placeholder="Enter custom input here..."></textarea>
-                                                <div class="p-1 bg-secondary text-white small fw-bold rounded-top">Output:</div>
-                                                <pre id="output_{{q.id}}" class="flex-grow-1 p-2 m-0 bg-dark text-success small font-monospace rounded-bottom" style="overflow-y: auto;">Ready.</pre>
+                                <div class="col-md-8 border-end">
+                                    <div id="editor_{{q.id}}" style="height: 400px; width: 100%;"></div>
+                                </div>
+
+                                <div class="col-md-4 bg-light d-flex flex-column border-start" style="height: 400px;">
+
+                                    <ul class="nav nav-tabs nav-fill bg-white border-bottom" id="codeTabs_{{q.id}}"
+                                        role="tablist">
+                                        <li class="nav-item">
+                                            <button class="nav-link active small py-2 fw-bold" id="custom-tab-{{q.id}}"
+                                                data-bs-toggle="tab" data-bs-target="#custom-content-{{q.id}}"
+                                                type="button">Custom Input</button>
+                                        </li>
+                                        <li class="nav-item">
+                                            <button class="nav-link small py-2 fw-bold" id="results-tab-{{q.id}}"
+                                                data-bs-toggle="tab" data-bs-target="#results-content-{{q.id}}"
+                                                type="button">Test Results</button>
+                                        </li>
+                                    </ul>
+
+                                    <div class="tab-content flex-grow-1 position-relative" id="codeTabContent_{{q.id}}">
+
+                                        <div class="tab-pane fade show active position-absolute top-0 start-0 w-100 h-100 p-2 d-flex flex-column"
+                                            id="custom-content-{{q.id}}">
+                                            <textarea id="input_{{q.id}}"
+                                                class="form-control border-0 shadow-none mb-2 resize-none"
+                                                style="flex-shrink: 0;" rows="3"
+                                                placeholder="Enter custom input here..."></textarea>
+                                            <div class="p-1 bg-secondary text-white small fw-bold rounded-top">Output:
                                             </div>
+                                            <pre id="output_{{q.id}}"
+                                                class="flex-grow-1 p-2 m-0 bg-dark text-success small font-monospace rounded-bottom"
+                                                style="overflow-y: auto;">Ready.</pre>
+                                        </div>
 
-                                            <div class="tab-pane fade position-absolute top-0 start-0 w-100 h-100" id="results-content-{{q.id}}" style="overflow-y: auto; background-color: #f8f9fa;">
-                                                <div id="test_results_{{q.id}}" class="p-0">
-                                                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted small py-5">
-                                                        <i class="bi bi-play-circle fs-1 mb-2 opacity-50"></i>
-                                                        <div>Click "Run Tests" to validate.</div>
-                                                    </div>
+                                        <div class="tab-pane fade position-absolute top-0 start-0 w-100 h-100"
+                                            id="results-content-{{q.id}}"
+                                            style="overflow-y: auto; background-color: #f8f9fa;">
+                                            <div id="test_results_{{q.id}}" class="p-0">
+                                                <div
+                                                    class="d-flex flex-column align-items-center justify-content-center h-100 text-muted small py-5">
+                                                    <i class="bi bi-play-circle fs-1 mb-2 opacity-50"></i>
+                                                    <div>Click "Run Tests" to validate.</div>
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <div class="p-2 border-top bg-white z-1"> <select id="lang_{{q.id}}" class="form-select form-select-sm mb-2">
-                                                <option value="python">Python</option>
-                                                <option value="java">Java</option>
-                                                <option value="cpp">C++</option>
-                                                <option value="c">C</option>
-                                                <option value="javascript">JavaScript</option>
-                                            </select>
-                                            <div class="d-flex gap-2">
-                                                <button type="button" onclick="runCustomCode('{{q.id}}')" class="btn btn-sm btn-outline-dark flex-grow-1 fw-bold">Run Custom</button>
-                                                <button type="button" onclick="runTestCases('{{q.id}}')" class="btn btn-sm btn-primary flex-grow-1 fw-bold">Run Tests</button>
-                                            </div>
-                                        </div>
-
                                     </div>
+
+                                    <div class="p-2 border-top bg-white z-1"> <select id="lang_{{q.id}}"
+                                            class="form-select form-select-sm mb-2">
+                                            <option value="python">Python</option>
+                                            <option value="java">Java</option>
+                                            <option value="cpp">C++</option>
+                                            <option value="c">C</option>
+                                            <option value="javascript">JavaScript</option>
+                                        </select>
+                                        <div class="d-flex gap-2">
+                                            <button type="button" onclick="runCustomCode('{{q.id}}')"
+                                                class="btn btn-sm btn-outline-dark flex-grow-1 fw-bold">Run
+                                                Custom</button>
+                                            <button type="button" onclick="runTestCases('{{q.id}}')"
+                                                class="btn btn-sm btn-primary flex-grow-1 fw-bold">Run Tests</button>
+                                        </div>
+                                    </div>
+
                                 </div>
                             </div>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
@@ -142,17 +191,20 @@
             </form>
 
             <div class="d-flex justify-content-between mt-4 mb-5 p-3 bg-white rounded shadow-sm border">
-                <button onclick="prevQuestion()" id="btn-prev" class="btn btn-outline-dark px-4 fw-bold" disabled>Previous</button>
+                <button onclick="prevQuestion()" id="btn-prev" class="btn btn-outline-dark px-4 fw-bold"
+                    disabled>Previous</button>
                 <button onclick="nextQuestion()" id="btn-next" class="btn btn-primary px-4 fw-bold">Next</button>
             </div>
         </div>
 
-        <div class="bg-white border-start shadow-sm d-none d-md-block" style="width: 280px; height: calc(100vh - 60px); overflow-y: auto;">
+        <div class="bg-white border-start shadow-sm d-none d-md-block"
+            style="width: 280px; height: calc(100vh - 60px); overflow-y: auto;">
             <div class="p-3">
                 <h6 class="fw-bold text-uppercase text-muted mb-3">Palette</h6>
                 <div class="d-grid gap-2" style="grid-template-columns: repeat(4, 1fr);">
                     {% for q in questions %}
-                    <button onclick="jumpToQuestion({{ forloop.counter0 }})" id="palette_btn_{{ forloop.counter0 }}" class="btn btn-outline-secondary btn-sm fw-bold palette-btn">{{ forloop.counter }}</button>
+                    <button onclick="jumpToQuestion({{ forloop.counter0 }})" id="palette_btn_{{ forloop.counter0 }}"
+                        class="btn btn-outline-secondary btn-sm fw-bold palette-btn">{{ forloop.counter }}</button>
                     {% endfor %}
                 </div>
                 <hr>
@@ -172,10 +224,24 @@
 </div>
 
 <style>
-    .hover-shadow:hover { background-color: #f8f9fa; }
-    .cursor-pointer { cursor: pointer; }
-    .palette-btn.active { border: 2px solid #0d6efd !important; color: #0d6efd !important; }
-    .palette-btn.answered { background-color: #198754 !important; color: white !important; border-color: #198754; }
+    .hover-shadow:hover {
+        background-color: #f8f9fa;
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .palette-btn.active {
+        border: 2px solid #0d6efd !important;
+        color: #0d6efd !important;
+    }
+
+    .palette-btn.answered {
+        background-color: #198754 !important;
+        color: white !important;
+        border-color: #198754;
+    }
 </style>
 {% endblock %}
 
@@ -183,14 +249,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
 
 <script>
-    let isTransitioning = false; 
+    let isTransitioning = false;
 
     function returnToFullscreen() {
         isTransitioning = true;
         const elem = document.documentElement;
         const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-        if(req) req.call(elem).catch(e => console.log("FS Fail", e));
-        
+        if (req) req.call(elem).catch(e => console.log("FS Fail", e));
+
         hideOverlay();
         // Ignore checks for 3s to let browser animate
         setTimeout(() => { isTransitioning = false; }, 3000);
@@ -212,26 +278,26 @@
     const CODE_DATA = {};
     try {
         {% for q in questions %}
-            {% if q.q_type == 'CODE' %}
-                CODE_DATA["{{q.id}}"] = "{{ q.starter_code|default:''|escapejs }}";
-            {% endif %}
+        {% if q.q_type == 'CODE' %}
+        CODE_DATA["{{q.id}}"] = "{{ q.starter_code|default:''|escapejs }}";
+        {% endif %}
         {% endfor %}
-    } catch(e) { console.error("Data Load Error", e); }
+    } catch (e) { console.error("Data Load Error", e); }
 
     // --- VARIABLES ---
-    let timeLeft = {{ time_left }}; 
-    const TOTAL_QUESTIONS = {{ questions|length }};
+    let timeLeft = {{ time_left }};
+    const TOTAL_QUESTIONS = {{ questions| length }};
     const MAX_WARNINGS = 2;
     let warningCount = 0;
-    
+
     let currentQuestionIndex = 0;
     let answeredQuestions = new Set();
-    let examEditors = {}; 
+    let examEditors = {};
     let timerInterval;
-    let monacoReady = false; 
+    let monacoReady = false;
     let isReloading = false;
-    let lastWarningTime = 0; 
-    
+    let lastWarningTime = 0;
+
     // SAFETY FLAG: Prevents the alert itself from triggering a blur warning
     let isAlertOpen = false;
 
@@ -283,7 +349,7 @@
 
         // 3. Debounce (Prevent duplicate warnings within 2 seconds)
         const now = Date.now();
-        if (now - lastWarningTime < 2000) return; 
+        if (now - lastWarningTime < 2000) return;
         lastWarningTime = now;
 
         // 4. Update Count
@@ -292,13 +358,13 @@
 
         // 5. Trigger Alert Safely
         isAlertOpen = true; // Lock warnings
-        
+
         if (warningCount > MAX_WARNINGS) {
             alert(`Maximum warnings exceeded (${warningCount}/${MAX_WARNINGS}). The exam will now auto-submit.`);
             finishSection(true, true);
         } else {
             alert(`WARNING ${warningCount}/${MAX_WARNINGS}: ${reason}\n\nDo not switch tabs or windows.`);
-            
+
             // Unlock warnings after 1 second (gives time for focus to return)
             setTimeout(() => { isAlertOpen = false; }, 1000);
         }
@@ -308,7 +374,7 @@
     function showQuestion(index) {
         document.querySelectorAll('.question-card').forEach(el => el.style.display = 'none');
         const target = document.getElementById(`q_card_${index}`);
-        if(target) {
+        if (target) {
             target.style.display = 'block';
             currentQuestionIndex = index;
             loadEditorForQuestion(index);
@@ -317,26 +383,26 @@
         updatePalette();
     }
 
-    function nextQuestion() { if(currentQuestionIndex < TOTAL_QUESTIONS-1) showQuestion(currentQuestionIndex+1); }
-    function prevQuestion() { if(currentQuestionIndex > 0) showQuestion(currentQuestionIndex-1); }
+    function nextQuestion() { if (currentQuestionIndex < TOTAL_QUESTIONS - 1) showQuestion(currentQuestionIndex + 1); }
+    function prevQuestion() { if (currentQuestionIndex > 0) showQuestion(currentQuestionIndex - 1); }
     function jumpToQuestion(idx) { showQuestion(idx); }
 
     function updateButtons() {
         document.getElementById('btn-prev').disabled = (currentQuestionIndex === 0);
-        document.getElementById('btn-next').disabled = (currentQuestionIndex === TOTAL_QUESTIONS-1);
+        document.getElementById('btn-next').disabled = (currentQuestionIndex === TOTAL_QUESTIONS - 1);
     }
 
     function updatePalette() {
-        for(let i=0; i<TOTAL_QUESTIONS; i++) {
+        for (let i = 0; i < TOTAL_QUESTIONS; i++) {
             const btn = document.getElementById(`palette_btn_${i}`);
             btn.className = 'btn btn-outline-secondary btn-sm fw-bold palette-btn';
-            if(answeredQuestions.has(i)) btn.classList.add('answered');
-            if(i === currentQuestionIndex) btn.classList.add('active');
+            if (answeredQuestions.has(i)) btn.classList.add('answered');
+            if (i === currentQuestionIndex) btn.classList.add('active');
         }
     }
 
     function markAnswered(index) { answeredQuestions.add(index); updatePalette(); }
-    
+
     function clearResponse() {
         const card = document.getElementById(`q_card_${currentQuestionIndex}`);
         const inputs = card.querySelectorAll('input[type="radio"], input[type="checkbox"]');
@@ -357,7 +423,7 @@
             isReloading = false; startTimer(); return;
         }
 
-        if(btn) {
+        if (btn) {
             btn.disabled = true;
             btn.innerHTML = 'Processing...';
         }
@@ -373,38 +439,38 @@
                 } else { answers[qId] = value; }
             }
         }
-        
+
         for (let [qId, editor] of Object.entries(examEditors)) {
-            if(editor) {
+            if (editor) {
                 try {
-                     answers[qId] = { 'code': editor.getValue(), 'language': document.getElementById(`lang_${qId}`).value };
-                } catch(e) {}
+                    answers[qId] = { 'code': editor.getValue(), 'language': document.getElementById(`lang_${qId}`).value };
+                } catch (e) { }
             }
         }
 
         fetch("{% url 'submit_section' attempt.id %}", {
             method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ answers: answers, warnings: warningCount, force_end: forceEnd })
         })
-        .then(res => res.json())
-        .then(data => {
-            if(data.status === 'next_section' || data.status === 'finished') {
-                sessionStorage.removeItem('section_warnings');
-                window.location.href = data.redirect_url;
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert("Submission failed. Check internet.");
-            if(btn) btn.disabled = false;
-        });
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'next_section' || data.status === 'finished') {
+                    sessionStorage.removeItem('section_warnings');
+                    window.location.href = data.redirect_url;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Submission failed. Check internet.");
+                if (btn) btn.disabled = false;
+            });
     }
 
     // --- MONACO ---
     function startMonacoLoader() {
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
             monacoReady = true;
             loadEditorForQuestion(currentQuestionIndex);
         });
@@ -417,7 +483,7 @@
         const codeBlock = card.querySelector('[data-is-code="true"]');
         if (!codeBlock) return;
         const qId = codeBlock.getAttribute('data-qid');
-        
+
         if (examEditors[qId]) { setTimeout(() => examEditors[qId].layout(), 50); return; }
 
         const container = document.getElementById(`editor_${qId}`);
@@ -433,26 +499,26 @@
     }
 
     function runCustomCode(qId) {
-        if(!examEditors[qId]) return;
+        if (!examEditors[qId]) return;
         const outputBox = document.getElementById(`output_${qId}`);
         outputBox.innerText = "Running...";
         fetch('/run_code/', {
             method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                code: examEditors[qId].getValue(), 
-                input: document.getElementById(`input_${qId}`).value, 
-                language: document.getElementById(`lang_${qId}`).value 
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code: examEditors[qId].getValue(),
+                input: document.getElementById(`input_${qId}`).value,
+                language: document.getElementById(`lang_${qId}`).value
             })
         })
-        .then(res => res.json())
-        .then(data => outputBox.innerText = data.output || data.error || "No Output")
-        .catch(err => outputBox.innerText = "Error: " + err);
+            .then(res => res.json())
+            .then(data => outputBox.innerText = data.output || data.error || "No Output")
+            .catch(err => outputBox.innerText = "Error: " + err);
     }
     // --- 3. NEW: RUN TEST CASES FUNCTION ---
     function runTestCases(qId) {
-        if(!examEditors[qId]) return;
-        
+        if (!examEditors[qId]) return;
+
         // 1. Switch Tab
         const tabEl = document.getElementById(`results-tab-${qId}`);
         if (tabEl) { new bootstrap.Tab(tabEl).show(); }
@@ -468,30 +534,30 @@
         // 3. Fetch
         fetch('/assessments/run-test-cases/', {
             method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({
                 q_id: qId,
-                code: examEditors[qId].getValue(), 
-                language: document.getElementById(`lang_${qId}`).value 
+                code: examEditors[qId].getValue(),
+                language: document.getElementById(`lang_${qId}`).value
             })
         })
-        .then(res => res.json())
-        .then(data => {
-            if(data.error) {
-                resultsBox.innerHTML = `<div class="p-3"><div class="alert alert-danger small mb-0">${data.error}</div></div>`;
-                return;
-            }
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    resultsBox.innerHTML = `<div class="p-3"><div class="alert alert-danger small mb-0">${data.error}</div></div>`;
+                    return;
+                }
 
-            let html = '<div class="list-group list-group-flush small border-top">';
-            if (data.results && data.results.length > 0) {
-                data.results.forEach(res => {
-                    const icon = res.passed ? '<i class="bi bi-check-circle-fill text-success fs-5"></i>' : '<i class="bi bi-x-circle-fill text-danger fs-5"></i>';
-                    const bg = res.passed ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10';
-                    
-                    // Truncate long outputs for display
-                    const displayActual = res.actual.length > 50 ? res.actual.substring(0, 50) + '...' : res.actual;
-                    
-                    html += `
+                let html = '<div class="list-group list-group-flush small border-top">';
+                if (data.results && data.results.length > 0) {
+                    data.results.forEach(res => {
+                        const icon = res.passed ? '<i class="bi bi-check-circle-fill text-success fs-5"></i>' : '<i class="bi bi-x-circle-fill text-danger fs-5"></i>';
+                        const bg = res.passed ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10';
+
+                        // Truncate long outputs for display
+                        const displayActual = res.actual.length > 50 ? res.actual.substring(0, 50) + '...' : res.actual;
+
+                        html += `
                     <div class="list-group-item ${bg} p-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold text-uppercase opacity-75" style="font-size: 0.8rem;">Test Case ${res.case_num}</span>
@@ -514,40 +580,40 @@
                             </div>
                         </div>
                     </div>`;
-                });
-            } else {
-                html += '<div class="p-4 text-center text-muted">No test cases found.</div>';
-            }
-            html += '</div>';
+                    });
+                } else {
+                    html += '<div class="p-4 text-center text-muted">No test cases found.</div>';
+                }
+                html += '</div>';
 
-            // Add Header Summary
-            let header = '';
-            if(data.all_passed) {
-                header = `<div class="bg-success text-white p-3 text-center fw-bold">
+                // Add Header Summary
+                let header = '';
+                if (data.all_passed) {
+                    header = `<div class="bg-success text-white p-3 text-center fw-bold">
                             <i class="bi bi-trophy-fill me-2"></i> All Test Cases Passed!
                         </div>`;
-            } else {
-                header = `<div class="bg-warning p-3 text-center fw-bold text-dark">
+                } else {
+                    header = `<div class="bg-warning p-3 text-center fw-bold text-dark">
                             <i class="bi bi-exclamation-triangle-fill me-2"></i> Some Cases Failed
                         </div>`;
-            }
+                }
 
-            resultsBox.innerHTML = header + html;
-        })
-        .catch(err => {
-            resultsBox.innerHTML = `<div class="p-3"><div class="alert alert-danger small"><strong>Error:</strong> ${err}</div></div>`;
-        });
+                resultsBox.innerHTML = header + html;
+            })
+            .catch(err => {
+                resultsBox.innerHTML = `<div class="p-3"><div class="alert alert-danger small"><strong>Error:</strong> ${err}</div></div>`;
+            });
     }
 
     // --- TIMER ---
     function startTimer() {
-        if(timerInterval) clearInterval(timerInterval);
+        if (timerInterval) clearInterval(timerInterval);
         timerInterval = setInterval(() => {
             timeLeft--;
             let m = Math.floor(timeLeft / 60);
             let s = timeLeft % 60;
             document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-            if (timeLeft <= 0) finishSection(true); 
+            if (timeLeft <= 0) finishSection(true);
         }, 1000);
     }
 

@@ -271,7 +271,8 @@ def calculate_final_score(attempt):
             test_cases = ExamTestCase.objects.filter(question=q)
             
             if user_code and test_cases.exists():
-                all_cases_passed = True
+                passed_cases = 0
+                total_cases = test_cases.count()
                 
                 for tc in test_cases:
                     # Run code using the secure external API (Piston)
@@ -283,15 +284,16 @@ def calculate_final_score(attempt):
                     clean_expected = tc.expected_output.strip()
                     
                     # Compare
-                    if clean_actual != clean_expected:
-                        all_cases_passed = False
-                        break
+                    if clean_actual == clean_expected:
+                        passed_cases += 1
                 
-                if all_cases_passed:
-                    is_correct = True
-            else:
-                # No code provided OR No test cases = 0 Marks
-                is_correct = False
+                # Partial marking: Award marks proportionally to test cases passed
+                if passed_cases > 0:
+                    partial_points = (passed_cases / total_cases) * q.marks
+                    total_obtained += partial_points
+                    
+            # Skip the standard 'is_correct' boolean addition for coding questions
+            continue
 
         # --- D. ADD MARKS ---
         if is_correct:
@@ -482,7 +484,6 @@ from .models import ExamQuestion, ExamTestCase
 from core.utils import execute_code_piston  # Ensure this is imported
 
 @csrf_exempt
-@login_required
 def run_question_test_cases(request):
     if request.method == "POST":
         try:
@@ -539,6 +540,8 @@ def public_start_exam(request, attempt_id):
 
     if not attempt.current_section:
         first_section = exam.sections.order_by('order').first()
+        if not first_section:
+            return render(request, 'assessments/error.html', {'message': 'Exam configuration error: No sections found.'})
         attempt.current_section = first_section
         attempt.section_start_time = timezone.now()
         attempt.save()
