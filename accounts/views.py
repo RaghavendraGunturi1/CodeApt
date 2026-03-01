@@ -11,6 +11,12 @@ def login_view(request):
             password = form.cleaned_data.get('password')
             user = authenticate(username=username, password=password)
             if user is not None:
+                # Intercept for forced password change
+                if hasattr(user, 'profile') and user.profile.force_password_change:
+                    request.session['force_password_change_user_id'] = user.id
+                    messages.warning(request, "For security reasons, you must change your default password before logging in.")
+                    return redirect('force_password_change')
+                    
                 login(request, user)
                 messages.success(request, f"Welcome back, {username}!")
                 return redirect('index') # Redirect to home after login
@@ -54,3 +60,39 @@ def logout_view(request):
     logout(request)
     messages.info(request, "You have successfully logged out.")
     return redirect('login')
+
+
+from django.contrib.auth.models import User
+
+def force_password_change_view(request):
+    user_id = request.session.get('force_password_change_user_id')
+    if not user_id:
+        return redirect('login')
+        
+    user = User.objects.get(id=user_id)
+    
+    if request.method == 'POST':
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+        
+        if new_password and new_password == confirm_password:
+            # Check length or other validations if needed
+            if len(new_password) < 8:
+                messages.error(request, "Password must be at least 8 characters long.")
+            else:
+                user.set_password(new_password)
+                user.save()
+                
+                # Turn off the force change flag
+                user.profile.force_password_change = False
+                user.profile.save()
+                
+                # Clear session
+                del request.session['force_password_change_user_id']
+                
+                messages.success(request, "Password successfully updated! Please log in with your new password.")
+                return redirect('login')
+        else:
+            messages.error(request, "Passwords do not match.")
+            
+    return render(request, 'accounts/force_password_change.html', {'user': user})

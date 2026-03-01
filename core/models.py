@@ -18,6 +18,7 @@ class Profile(models.Model):
     state = models.CharField(max_length=100, blank=True, null=True) # Added State
     bio = models.TextField(max_length=500, blank=True)
     avatar_url = models.URLField(blank=True, max_length=500, default="https://ui-avatars.com/api/?background=0D8ABC&color=fff&name=User")
+    force_password_change = models.BooleanField(default=False, help_text="If true, forces user to reset password on next login.")
 
     def __str__(self):
         return f"{self.user.username}'s Profile"

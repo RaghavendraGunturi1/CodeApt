@@ -174,9 +174,111 @@ class ModuleAdmin(admin.ModelAdmin):
     list_filter = ('subject',)
     search_fields = ('name',)
 
+class EnrollmentUploadForm(forms.Form):
+    subjects = forms.ModelMultipleChoiceField(
+        queryset=Subject.objects.all(),
+        label="Select Subjects for Enrollment",
+        help_text="All students in the Excel sheet will be enrolled in all selected subjects."
+    )
+    excel_file = forms.FileField(
+        label="Upload Excel File",
+        help_text="Columns needed: 'username', 'email', 'full_name', 'college_name', 'roll_number', 'phone_number', 'state', 'bio'"
+    )
+
+from django.contrib.auth.models import User
+from core.models import Profile
+
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):
     list_display = ('user', 'subject', 'enrolled_at')
     list_filter = ('subject', 'enrolled_at')
     search_fields = ('user__username', 'user__email', 'subject__name')
     autocomplete_fields = ['user', 'subject']
+    change_list_template = "admin/curriculum/enrollment/change_list.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('upload-excel/', self.admin_site.admin_view(self.upload_excel_view), name='enrollment_upload_excel'),
+        ]
+        return custom_urls + urls
+
+    def upload_excel_view(self, request):
+        if request.method == "POST":
+            form = EnrollmentUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                subjects = form.cleaned_data['subjects']
+                file = request.FILES['excel_file']
+                
+                try:
+                    df = pd.read_excel(file)
+                    df = df.fillna('')
+                    df.columns = df.columns.str.lower().str.strip()
+
+                    new_users_count = 0
+                    enrollments_count = 0
+
+                    for index, row in df.iterrows():
+                        username = str(row.get('username', '')).strip()
+                        email = str(row.get('email', '')).strip()
+                        
+                        if not username or not email:
+                            continue # Skip invalid rows
+                            
+                        # 1. Get or Create User
+                        user, created = User.objects.get_or_create(
+                            username=username,
+                            defaults={'email': email}
+                        )
+                        
+                        if created:
+                            user.set_password('CodeApt@123')
+                            user.save()
+                            new_users_count += 1
+                            
+                        # 2. Setup/Update Profile
+                        profile, _ = Profile.objects.get_or_create(user=user)
+                        
+                        if created:
+                            profile.force_password_change = True
+                            
+                        # Update fields if present in Excel
+                        if 'full_name' in df.columns and str(row.get('full_name')).strip():
+                            profile.full_name = str(row['full_name']).strip()
+                        if 'college_name' in df.columns and str(row.get('college_name')).strip():
+                            profile.college_name = str(row['college_name']).strip()
+                        if 'roll_number' in df.columns and str(row.get('roll_number')).strip():
+                            profile.roll_number = str(row['roll_number']).strip()
+                        if 'phone_number' in df.columns and str(row.get('phone_number')).strip():
+                            profile.phone_number = str(row['phone_number']).strip()
+                        if 'state' in df.columns and str(row.get('state')).strip():
+                            profile.state = str(row['state']).strip()
+                        if 'bio' in df.columns and str(row.get('bio')).strip():
+                            profile.bio = str(row['bio']).strip()
+                            
+                        profile.save()
+
+                        # 3. Create Enrollment for each subject
+                        for subject in subjects:
+                            enrollment, enc_created = Enrollment.objects.get_or_create(
+                                user=user,
+                                subject=subject
+                            )
+                            if enc_created:
+                                enrollments_count += 1
+                            
+                    subject_names = ", ".join([s.name for s in subjects])
+                    messages.success(request, f"Upload complete! Created {enrollments_count} new enrollments across [{subject_names}]. (Created {new_users_count} new accounts).")
+                    return redirect("..")
+                    
+                except Exception as e:
+                    messages.error(request, f"Error processing file: {e}")
+        else:
+            form = EnrollmentUploadForm()
+
+        context = dict(
+            self.admin_site.each_context(request),
+            form=form,
+            opts=self.model._meta,
+        )
+        return render(request, "admin/curriculum/enrollment/upload_form.html", context)

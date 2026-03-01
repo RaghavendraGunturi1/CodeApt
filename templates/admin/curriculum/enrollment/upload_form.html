@@ -1,0 +1,92 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; Bulk User Enrollment
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <fieldset class="module aligned">
+            <div class="form-row">
+                <p>Use this form to automatically create student accounts (if missing) and enroll them into all
+                    logically selected Subjects (Hold Ctrl/Cmd to select multiple).</p>
+            </div>
+
+            <div class="form-row">
+                {{ form.as_p }}
+            </div>
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="Upload and Enroll" class="default" name="_save">
+        </div>
+    </form>
+
+    <br>
+    <div class="module">
+        <h2>Excel Format Guide</h2>
+        <p style="padding: 10px;">The document must have these exact column titles (case-insensitive) in the first row.
+            All fields map directly to the student Profile.</p>
+        <table style="width: 100%; text-align: left; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f8f8; border-bottom: 2px solid #ddd;">
+                    <th style="padding: 10px;">Column Name</th>
+                    <th style="padding: 10px;">Requirement</th>
+                    <th style="padding: 10px;">Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>username</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><span
+                            style="color:red; font-weight:bold;">Required</span></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>john_doe123</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>email</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><span
+                            style="color:red; font-weight:bold;">Required</span></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>john@example.com</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>full_name</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">Optional</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>John Doe</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>college_name</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">Optional</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>Tech University</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>roll_number</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">Optional</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>21BCE0001</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>phone_number</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">Optional</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>9876543210</i></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>state</strong></td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">Optional</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;"><i>Karnataka</i></td>
+                </tr>
+            </tbody>
+        </table>
+        <p style="padding: 10px; color: #555;"><i>Note: New users are created with a default password of
+                <code>CodeApt@123</code>. The system will force them to securely change their password upon their very
+                first login attempt.</i></p>
+    </div>
+</div>
+{% endblock %}
