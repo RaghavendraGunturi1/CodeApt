@@ -8,6 +8,7 @@ from django.utils import timezone
 from datetime import timedelta
 import requests
 import json
+from django.db.models import Q
 from .models import DailyQuestion, UserStreak, DailySubmission, TestCase
 from core.utils import execute_code_piston
 
@@ -140,4 +141,23 @@ def update_user_progress(user, question, score):
 def leaderboard(request):
     # Sort by Score (Desc), then Streak (Desc)
     leaders = UserStreak.objects.select_related('user').order_by('-total_score', '-current_streak')[:20]
-    return render(request, 'challenges/leaderboard.html', {'leaders': leaders})
+    
+    user_rank = None
+    user_streak = None
+    
+    if request.user.is_authenticated:
+        try:
+            user_streak = UserStreak.objects.get(user=request.user)
+            # Count how many users have a strictly higher score, OR same score but better streak
+            user_rank = UserStreak.objects.filter(
+                Q(total_score__gt=user_streak.total_score) |
+                Q(total_score=user_streak.total_score, current_streak__gt=user_streak.current_streak)
+            ).count() + 1
+        except UserStreak.DoesNotExist:
+            pass
+            
+    return render(request, 'challenges/leaderboard.html', {
+        'leaders': leaders,
+        'user_rank': user_rank,
+        'user_streak': user_streak
+    })

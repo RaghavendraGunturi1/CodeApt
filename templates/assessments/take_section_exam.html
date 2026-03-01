@@ -25,6 +25,10 @@
             <div class="fs-5 fw-bold text-warning font-monospace">
                 <i class="bi bi-stopwatch"></i> <span id="timer">Loading...</span>
             </div>
+            <button type="button" class="btn btn-outline-light btn-sm fw-bold border-0" onclick="toggleCalculator()"
+                title="Open Calculator">
+                <i class="bi bi-calculator"></i> Calculator
+            </button>
             <button id="submit-btn" type="button" onclick="finishSection()" class="btn btn-success fw-bold btn-sm">
                 {% if is_last_section %}
                 Submit Exam <i class="bi bi-check-circle-fill"></i>
@@ -65,7 +69,9 @@
                         <span class="badge bg-secondary">{{ q.marks }} Marks</span>
                     </div>
                     <div class="card-body p-4">
-                        {% if q.text %} <h5 class="fw-bold mb-3" style="white-space: pre-wrap;">{{ q.text }}</h5> {% endif %}
+                        {% if q.text %}
+                        <h5 class="fw-bold mb-3" style="white-space: pre-wrap;">{{ q.text }}</h5>
+                        {% endif %}
                         {% if q.image %}
                         <div class="mb-4 text-center">
                             <img src="{{ q.image.url }}" class="img-fluid rounded border shadow-sm"
@@ -212,6 +218,8 @@
         </div>
     </div>
 </div>
+
+{% include 'assessments/calculator.html' %}
 
 <div id="start-modal" class="container mt-5 text-center">
     <div class="card p-5 shadow border-0" style="max-width: 600px; margin: auto;">

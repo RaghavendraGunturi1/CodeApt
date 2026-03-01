@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div id="fullscreen-overlay" class="position-fixed top-0 start-0 w-100 h-100 bg-dark d-flex flex-column justify-content-center align-items-center" style="z-index: 10000; display: none;">
+<div id="fullscreen-overlay"
+    class="position-fixed top-0 start-0 w-100 h-100 bg-dark d-flex flex-column justify-content-center align-items-center"
+    style="z-index: 10000; display: none;">
     <div class="text-center text-white">
         <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 5rem;"></i>
         <h2 class="fw-bold mt-4">Exam Paused</h2>
@@ -10,75 +12,114 @@
     </div>
 </div>
 
-<div id="exam-container" class="bg-light min-vh-100 position-fixed top-0 start-0 w-100 h-100" style="z-index: 9999; overflow-y: hidden; display: none;">
-    
+<div id="exam-container" class="bg-light min-vh-100 position-fixed top-0 start-0 w-100 h-100"
+    style="z-index: 9999; overflow-y: hidden; display: none;">
+
     <div class="bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow" style="height: 60px;">
         <h5 class="m-0 text-truncate" style="max-width: 300px;">{{ exam.topic.name }}</h5>
         <div class="d-flex gap-4 align-items-center">
             <div class="fs-5 fw-bold text-warning font-monospace" id="timer">Loading...</div>
+            <button type="button" class="btn btn-outline-light btn-sm fw-bold border-0" onclick="toggleCalculator()"
+                title="Open Calculator">
+                <i class="bi bi-calculator"></i> Calculator
+            </button>
             <button onclick="finishExam()" class="btn btn-danger fw-bold btn-sm">Submit Exam</button>
         </div>
     </div>
 
     <div class="d-flex h-100">
-        
+
         <div class="flex-grow-1 p-4 overflow-auto" style="height: calc(100vh - 60px);">
             <form id="examForm">
                 {% for q in questions %}
-                <div class="question-card card shadow-sm border-0 mb-3" id="q_card_{{ forloop.counter0 }}" style="display: none;">
-                    <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-                        <span class="fw-bold text-secondary">Question {{ forloop.counter }} of {{ questions|length }}</span>
+                <div class="question-card card shadow-sm border-0 mb-3" id="q_card_{{ forloop.counter0 }}"
+                    style="display: none;">
+                    <div
+                        class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-secondary">Question {{ forloop.counter }} of {{ questions|length
+                            }}</span>
                         <div>
                             <span class="badge bg-secondary">{{ q.marks }} Marks</span>
-                            <span id="badge_review_{{ forloop.counter0 }}" class="badge bg-warning text-dark ms-2" style="display: none;">Marked for Review</span>
+                            <span id="badge_review_{{ forloop.counter0 }}" class="badge bg-warning text-dark ms-2"
+                                style="display: none;">Marked for Review</span>
                         </div>
                     </div>
                     <div class="card-body p-4">
                         <h5 class="fw-bold mb-4" style="line-height: 1.6;">{{ q.text }}</h5>
 
                         {% if q.q_type == 'MCQ_SINGLE' %}
-                            <div class="d-flex flex-column gap-3">
-                                {% if q.option_1 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="1" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
-                                {% if q.option_2 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="2" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
-                                {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
-                                {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
-                            </div>
+                        <div class="d-flex flex-column gap-3">
+                            {% if q.option_1 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="1"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
+                            {% if q.option_2 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="2"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
+                            {% if q.option_3 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="3"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
+                            {% if q.option_4 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="radio" name="q_{{q.id}}" value="4"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
+                        </div>
 
                         {% elif q.q_type == 'MCQ_MULTI' %}
-                            <div class="d-flex flex-column gap-3">
-                                {% if q.option_1 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="1" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
-                                {% if q.option_2 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="2" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
-                                {% if q.option_3 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="3" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
-                                {% if q.option_4 %}<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="4" onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
-                            </div>
+                        <div class="d-flex flex-column gap-3">
+                            {% if q.option_1 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="1"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_1 }}</label>{% endif %}
+                            {% if q.option_2 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="2"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_2 }}</label>{% endif %}
+                            {% if q.option_3 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="3"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_3 }}</label>{% endif %}
+                            {% if q.option_4 %}<label
+                                class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center"><input
+                                    class="form-check-input me-3" type="checkbox" name="q_{{q.id}}" value="4"
+                                    onchange="markAnswered({{ forloop.counter0 }})"> {{ q.option_4 }}</label>{% endif %}
+                        </div>
 
                         {% elif q.q_type == 'CODE' %}
-                            <div class="mt-2" data-is-code="true" data-qid="{{q.id}}" data-index="{{ forloop.counter0 }}">
-                                <div class="d-flex justify-content-end mb-2">
-                                    <select id="lang_{{q.id}}" class="form-select form-select-sm w-auto">
-                                        <option value="python">Python</option>
-                                        <option value="java">Java</option>
-                                        <option value="cpp">C++</option>
-                                        <option value="c">C</option>
-                                    </select>
-                                </div>
-                                <div class="row g-0 border rounded overflow-hidden">
-                                    <div class="col-md-8 border-end">
-                                        <div id="editor_{{q.id}}" style="height: 400px; width: 100%;"></div>
-                                    </div>
-                                    <div class="col-md-4 bg-light d-flex flex-column">
-                                        <div class="p-2 bg-secondary text-white small fw-bold">Custom Input</div>
-                                        <textarea id="input_{{q.id}}" class="form-control border-0 rounded-0" rows="3"></textarea>
-                                        <div class="p-2 bg-secondary text-white small fw-bold mt-auto">Output</div>
-                                        <pre id="output_{{q.id}}" class="flex-grow-1 p-2 m-0 bg-dark text-success small font-monospace" style="height: 100px; overflow-y: auto;">Ready.</pre>
-                                    </div>
-                                </div>
-                                <div class="d-flex gap-2 mt-2">
-                                    <button type="button" onclick="runCustomCode('{{q.id}}')" class="btn btn-secondary flex-grow-1"><i class="bi bi-play-fill"></i> Run</button>
-                                    <button type="button" onclick="checkTestCases('{{q.id}}')" class="btn btn-primary flex-grow-1" id="btn_submit_{{q.id}}"><i class="bi bi-check-circle"></i> Check</button>
-                                </div>
-                                <div id="msg_{{q.id}}" class="mt-2 fw-bold text-center"></div>
+                        <div class="mt-2" data-is-code="true" data-qid="{{q.id}}" data-index="{{ forloop.counter0 }}">
+                            <div class="d-flex justify-content-end mb-2">
+                                <select id="lang_{{q.id}}" class="form-select form-select-sm w-auto">
+                                    <option value="python">Python</option>
+                                    <option value="java">Java</option>
+                                    <option value="cpp">C++</option>
+                                    <option value="c">C</option>
+                                </select>
                             </div>
+                            <div class="row g-0 border rounded overflow-hidden">
+                                <div class="col-md-8 border-end">
+                                    <div id="editor_{{q.id}}" style="height: 400px; width: 100%;"></div>
+                                </div>
+                                <div class="col-md-4 bg-light d-flex flex-column">
+                                    <div class="p-2 bg-secondary text-white small fw-bold">Custom Input</div>
+                                    <textarea id="input_{{q.id}}" class="form-control border-0 rounded-0"
+                                        rows="3"></textarea>
+                                    <div class="p-2 bg-secondary text-white small fw-bold mt-auto">Output</div>
+                                    <pre id="output_{{q.id}}"
+                                        class="flex-grow-1 p-2 m-0 bg-dark text-success small font-monospace"
+                                        style="height: 100px; overflow-y: auto;">Ready.</pre>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" onclick="runCustomCode('{{q.id}}')"
+                                    class="btn btn-secondary flex-grow-1"><i class="bi bi-play-fill"></i> Run</button>
+                                <button type="button" onclick="checkTestCases('{{q.id}}')"
+                                    class="btn btn-primary flex-grow-1" id="btn_submit_{{q.id}}"><i
+                                        class="bi bi-check-circle"></i> Check</button>
+                            </div>
+                            <div id="msg_{{q.id}}" class="mt-2 fw-bold text-center"></div>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
@@ -86,10 +127,11 @@
             </form>
 
             <div class="card shadow-sm border-0 fixed-bottom p-3 bg-white border-top d-md-none">
-                </div>
-            
-            <div class="d-flex justify-content-between align-items-center mt-4 mb-5 p-3 bg-white rounded shadow-sm border">
-                
+            </div>
+
+            <div
+                class="d-flex justify-content-between align-items-center mt-4 mb-5 p-3 bg-white rounded shadow-sm border">
+
                 <button onclick="prevQuestion()" id="btn-prev" class="btn btn-outline-dark px-4 fw-bold" disabled>
                     <i class="bi bi-arrow-left"></i> Previous
                 </button>
@@ -98,7 +140,8 @@
                     <button onclick="clearResponse()" class="btn btn-outline-danger px-3" title="Clear your answer">
                         <i class="bi bi-eraser-fill"></i> Clear
                     </button>
-                    <button onclick="toggleReview()" id="btn-review" class="btn btn-outline-warning text-dark px-3 fw-bold" title="Mark for later review">
+                    <button onclick="toggleReview()" id="btn-review"
+                        class="btn btn-outline-warning text-dark px-3 fw-bold" title="Mark for later review">
                         <i class="bi bi-flag-fill"></i> Review
                     </button>
                 </div>
@@ -109,15 +152,14 @@
             </div>
         </div>
 
-        <div class="bg-white border-start shadow-sm d-none d-md-block" style="width: 320px; height: calc(100vh - 60px); overflow-y: auto;">
+        <div class="bg-white border-start shadow-sm d-none d-md-block"
+            style="width: 320px; height: calc(100vh - 60px); overflow-y: auto;">
             <div class="p-3">
                 <h6 class="fw-bold text-uppercase text-muted mb-3">Question Palette</h6>
                 <div class="d-grid gap-2" style="grid-template-columns: repeat(5, 1fr);">
                     {% for q in questions %}
-                    <button onclick="jumpToQuestion({{ forloop.counter0 }})" 
-                            id="palette_btn_{{ forloop.counter0 }}" 
-                            class="btn btn-outline-secondary btn-sm fw-bold palette-btn" 
-                            style="width: 100%; height: 40px;">
+                    <button onclick="jumpToQuestion({{ forloop.counter0 }})" id="palette_btn_{{ forloop.counter0 }}"
+                        class="btn btn-outline-secondary btn-sm fw-bold palette-btn" style="width: 100%; height: 40px;">
                         {{ forloop.counter }}
                     </button>
                     {% endfor %}
@@ -125,10 +167,19 @@
 
                 <div class="mt-4 small border-top pt-3">
                     <div class="row g-2">
-                        <div class="col-6 d-flex align-items-center"><div class="rounded-circle bg-success me-2" style="width:10px; height:10px;"></div> Answered</div>
-                        <div class="col-6 d-flex align-items-center"><div class="rounded-circle bg-warning me-2" style="width:10px; height:10px;"></div> Review</div>
-                        <div class="col-6 d-flex align-items-center"><div class="rounded-circle bg-primary me-2" style="width:10px; height:10px;"></div> Current</div>
-                        <div class="col-6 d-flex align-items-center"><div class="rounded-circle bg-secondary bg-opacity-25 me-2" style="width:10px; height:10px;"></div> Unvisited</div>
+                        <div class="col-6 d-flex align-items-center">
+                            <div class="rounded-circle bg-success me-2" style="width:10px; height:10px;"></div> Answered
+                        </div>
+                        <div class="col-6 d-flex align-items-center">
+                            <div class="rounded-circle bg-warning me-2" style="width:10px; height:10px;"></div> Review
+                        </div>
+                        <div class="col-6 d-flex align-items-center">
+                            <div class="rounded-circle bg-primary me-2" style="width:10px; height:10px;"></div> Current
+                        </div>
+                        <div class="col-6 d-flex align-items-center">
+                            <div class="rounded-circle bg-secondary bg-opacity-25 me-2"
+                                style="width:10px; height:10px;"></div> Unvisited
+                        </div>
                     </div>
                 </div>
             </div>
@@ -136,6 +187,8 @@
 
     </div>
 </div>
+
+{% include 'assessments/calculator.html' %}
 
 <div id="start-modal" class="container mt-5 text-center">
     <div class="card p-5 shadow border-0" style="max-width: 600px; margin: auto;">
@@ -152,13 +205,31 @@
 </div>
 
 <style>
-    .hover-shadow:hover { background-color: #f8f9fa; }
-    .cursor-pointer { cursor: pointer; }
-    
+    .hover-shadow:hover {
+        background-color: #f8f9fa;
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
     /* Palette Styles */
-    .palette-btn.active { border: 2px solid #0d6efd !important; color: #0d6efd !important; }
-    .palette-btn.answered { background-color: #198754 !important; color: white !important; border-color: #198754; }
-    .palette-btn.review { background-color: #ffc107 !important; color: black !important; border-color: #ffc107; }
+    .palette-btn.active {
+        border: 2px solid #0d6efd !important;
+        color: #0d6efd !important;
+    }
+
+    .palette-btn.answered {
+        background-color: #198754 !important;
+        color: white !important;
+        border-color: #198754;
+    }
+
+    .palette-btn.review {
+        background-color: #ffc107 !important;
+        color: black !important;
+        border-color: #ffc107;
+    }
 </style>
 {% endblock %}
 
@@ -169,27 +240,27 @@
     // --- VARIABLES ---
     const EXAM_DURATION = {{ exam.duration_minutes }} * 60;
     const MAX_WARNINGS = 2;
-    const TOTAL_QUESTIONS = {{ questions|length }};
-    
+    const TOTAL_QUESTIONS = {{ questions| length }};
+
     let currentQuestionIndex = 0;
     let answeredQuestions = new Set();
     let reviewQuestions = new Set();
-    
+
     let timerInterval;
     let timeLeft;
     let warningCount = 0;
     let examEditors = {};
     let isReloading = false;
-    let isTransitioning = false; 
+    let isTransitioning = false;
 
     // --- 1. ENTER EXAM ---
     function enterExam() {
         const elem = document.documentElement;
-        isTransitioning = true; 
+        isTransitioning = true;
 
         // Attempt Full Screen
         const requestFS = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.mozRequestFullScreen || elem.msRequestFullscreen;
-        
+
         if (requestFS) {
             requestFS.call(elem).then(() => {
                 startExamLogic();
@@ -205,15 +276,15 @@
         document.getElementById('start-modal').style.display = 'none';
         document.getElementById('exam-container').style.display = 'block';
         hideOverlay();
-        
+
         // Restore State
         const storedTime = sessionStorage.getItem('exam_time_left');
         const storedWarnings = sessionStorage.getItem('exam_warnings');
         const storedReview = sessionStorage.getItem('exam_review_set');
-        
+
         timeLeft = storedTime ? parseInt(storedTime) : EXAM_DURATION;
         warningCount = storedWarnings ? parseInt(storedWarnings) : 0;
-        
+
         if (storedReview) reviewQuestions = new Set(JSON.parse(storedReview));
 
         initMonaco();
@@ -228,10 +299,10 @@
 
     function isFullscreen() {
         // STRICT: Only trust the API. No dimension guessing.
-        return document.fullscreenElement || 
-               document.webkitFullscreenElement || 
-               document.mozFullScreenElement || 
-               document.msFullscreenElement;
+        return document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement;
     }
 
     function checkFullscreenStatus() {
@@ -259,8 +330,8 @@
     function hideOverlay() {
         const overlay = document.getElementById('fullscreen-overlay');
         const container = document.getElementById('exam-container');
-        if(overlay) overlay.style.setProperty('display', 'none', 'important');
-        if(container) container.style.filter = "none";
+        if (overlay) overlay.style.setProperty('display', 'none', 'important');
+        if (container) container.style.filter = "none";
     }
 
     // LISTENERS
@@ -269,7 +340,7 @@
     document.addEventListener("webkitfullscreenchange", checkFullscreenStatus);
     document.addEventListener("mozfullscreenchange", checkFullscreenStatus);
     document.addEventListener("MSFullscreenChange", checkFullscreenStatus);
-    
+
     // 2. Window Resize (Backup catch)
     window.addEventListener("resize", () => {
         if (!isTransitioning) checkFullscreenStatus();
@@ -286,7 +357,7 @@
         isTransitioning = true;
         const elem = document.documentElement;
         const req = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-        
+
         if (req) {
             req.call(elem).then(() => {
                 hideOverlay();
@@ -316,14 +387,14 @@
     function showQuestion(index) {
         document.querySelectorAll('.question-card').forEach(el => el.style.display = 'none');
         const targetCard = document.getElementById(`q_card_${index}`);
-        if(targetCard) {
+        if (targetCard) {
             targetCard.style.display = 'block';
             currentQuestionIndex = index;
             // Monaco Layout Fix
             const codeBlock = targetCard.querySelector('[data-is-code="true"]');
-            if(codeBlock) {
+            if (codeBlock) {
                 const qId = codeBlock.getAttribute('data-qid');
-                if(examEditors[qId]) examEditors[qId].layout();
+                if (examEditors[qId]) examEditors[qId].layout();
             }
         }
         updateButtons();
@@ -349,11 +420,11 @@
         if (reviewQuestions.has(currentQuestionIndex)) {
             btn.classList.remove('btn-outline-warning'); btn.classList.add('btn-warning');
             btn.innerHTML = '<i class="bi bi-flag-fill"></i> Unflag';
-            if(badge) badge.style.display = 'inline-block';
+            if (badge) badge.style.display = 'inline-block';
         } else {
             btn.classList.add('btn-outline-warning'); btn.classList.remove('btn-warning');
             btn.innerHTML = '<i class="bi bi-flag"></i> Review';
-            if(badge) badge.style.display = 'none';
+            if (badge) badge.style.display = 'none';
         }
     }
 
@@ -380,9 +451,9 @@
     }
 
     function updatePalette() {
-        for(let i=0; i<TOTAL_QUESTIONS; i++) {
+        for (let i = 0; i < TOTAL_QUESTIONS; i++) {
             const btn = document.getElementById(`palette_btn_${i}`);
-            btn.className = 'btn btn-outline-secondary btn-sm fw-bold palette-btn'; 
+            btn.className = 'btn btn-outline-secondary btn-sm fw-bold palette-btn';
             if (reviewQuestions.has(i)) btn.classList.add('review');
             else if (answeredQuestions.has(i)) btn.classList.add('answered');
             if (i === currentQuestionIndex) btn.classList.add('active');
@@ -408,26 +479,26 @@
 
     // --- 5. MONACO & CODING ---
     function initMonaco() {
-        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
             {% for q in questions %}
-                {% if q.q_type == 'CODE' %}
-                    const container = document.getElementById('editor_{{q.id}}');
-                    if (container && container.children.length === 0) { 
-                        let ed = monaco.editor.create(container, {
-                            value: `{{ q.starter_code|escapejs }}`,
-                            language: 'python',
-                            theme: 'vs',
-                            minimap: { enabled: false },
-                            automaticLayout: true
-                        });
-                        examEditors['{{q.id}}'] = ed;
-                        ed.onDidChangeModelContent(() => {
-                            const idx = parseInt(document.querySelector('[data-qid="{{q.id}}"]').getAttribute('data-index'));
-                            markAnswered(idx);
-                        });
-                    }
-                {% endif %}
+            {% if q.q_type == 'CODE' %}
+            const container = document.getElementById('editor_{{q.id}}');
+            if (container && container.children.length === 0) {
+                let ed = monaco.editor.create(container, {
+                    value: `{{ q.starter_code|escapejs }}`,
+                    language: 'python',
+                    theme: 'vs',
+                    minimap: { enabled: false },
+                    automaticLayout: true
+                });
+                examEditors['{{q.id}}'] = ed;
+                ed.onDidChangeModelContent(() => {
+                    const idx = parseInt(document.querySelector('[data-qid="{{q.id}}"]').getAttribute('data-index'));
+                    markAnswered(idx);
+                });
+            }
+            {% endif %}
             {% endfor %}
         });
     }
@@ -440,11 +511,11 @@
         outputBox.innerText = "Running...";
         fetch('/run_code/', {
             method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: code, input: input, language: lang })
         })
-        .then(res => res.json())
-        .then(data => outputBox.innerText = data.output);
+            .then(res => res.json())
+            .then(data => outputBox.innerText = data.output);
     }
 
     function checkTestCases(qId) {
@@ -456,35 +527,35 @@
         btn.disabled = true;
         fetch(`/assessments/check_code/${qId}/`, {
             method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: code, language: lang })
         })
-        .then(res => res.json())
-        .then(data => {
-            btn.disabled = false;
-            if(data.status === 'success') {
-                if(data.all_passed) {
-                    msgBox.innerHTML = `<span class="text-success"><i class="bi bi-check-all"></i> Success! Passed. Locked.</span>`;
-                    examEditors[qId].updateOptions({ readOnly: true });
-                    btn.style.display = 'none';
-                    const idx = parseInt(document.querySelector('[data-qid="{{q.id}}"]').getAttribute('data-index'));
-                    markAnswered(idx);
-                } else {
-                    msgBox.innerHTML = `<span class="text-danger">Failed. ${data.passed_count}/${data.total_cases} Passed.</span>`;
-                }
-            } else { msgBox.innerText = "Error: " + data.message; }
-        });
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                if (data.status === 'success') {
+                    if (data.all_passed) {
+                        msgBox.innerHTML = `<span class="text-success"><i class="bi bi-check-all"></i> Success! Passed. Locked.</span>`;
+                        examEditors[qId].updateOptions({ readOnly: true });
+                        btn.style.display = 'none';
+                        const idx = parseInt(document.querySelector('[data-qid="{{q.id}}"]').getAttribute('data-index'));
+                        markAnswered(idx);
+                    } else {
+                        msgBox.innerHTML = `<span class="text-danger">Failed. ${data.passed_count}/${data.total_cases} Passed.</span>`;
+                    }
+                } else { msgBox.innerText = "Error: " + data.message; }
+            });
     }
 
     // --- 6. FINISH ---
     function finishExam(auto = false) {
         isReloading = true;
         clearInterval(timerInterval);
-        if(auto) alert("Exam Auto-Submitted.");
+        if (auto) alert("Exam Auto-Submitted.");
 
         let answers = {};
         const formData = new FormData(document.getElementById('examForm'));
-        
+
         for (let [key, value] of formData.entries()) {
             if (key.startsWith('q_')) {
                 let qId = key.replace('q_', '');
@@ -504,19 +575,19 @@
 
         fetch("{% url 'submit_exam' attempt_id %}", {
             method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'},
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ answers: answers, warnings: warningCount })
         })
-        .then(res => res.json())
-        .then(data => {
-            if(data.status === 'success') {
-                sessionStorage.removeItem('exam_time_left');
-                sessionStorage.removeItem('exam_warnings');
-                sessionStorage.removeItem('exam_review_set');
-                if (document.exitFullscreen) document.exitFullscreen();
-                window.location.href = data.redirect_url;
-            }
-        });
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    sessionStorage.removeItem('exam_time_left');
+                    sessionStorage.removeItem('exam_warnings');
+                    sessionStorage.removeItem('exam_review_set');
+                    if (document.exitFullscreen) document.exitFullscreen();
+                    window.location.href = data.redirect_url;
+                }
+            });
     }
 </script>
 

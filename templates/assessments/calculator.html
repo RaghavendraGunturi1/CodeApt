@@ -1,0 +1,139 @@
+<div id="exam-calculator" class="card shadow-lg border-0"
+    style="display: none; position: fixed; top: 100px; right: 80px; width: 260px; z-index: 10050; border-radius: 12px; overflow: hidden; background: white;">
+    <!-- Header for Dragging -->
+    <div id="calc-header" class="bg-dark text-white p-2 d-flex justify-content-between align-items-center"
+        style="cursor: move; user-select: none;">
+        <span class="fw-bold small ms-1"><i class="bi bi-calculator"></i> Calculator</span>
+        <button type="button" class="btn-close btn-close-white" style="font-size: 0.7rem;"
+            onclick="toggleCalculator()"></button>
+    </div>
+    <div class="card-body p-2 bg-light">
+        <input type="text" id="calc-display"
+            class="form-control text-end fs-4 fw-bold mb-2 shadow-sm font-monospace text-dark" readonly
+            style="background-color: #fff; border: 1px solid #dee2e6;">
+
+        <div class="row g-1">
+            <!-- Row 1 -->
+            <div class="col-6"><button type="button" class="btn btn-danger w-100 fw-bold shadow-sm"
+                    onclick="calcClear()">C</button></div>
+            <div class="col-3"><button type="button" class="btn btn-secondary w-100 fw-bold shadow-sm"
+                    onclick="calcDel()">DEL</button></div>
+            <div class="col-3"><button type="button" class="btn btn-warning w-100 fw-bold shadow-sm"
+                    onclick="calcAppend('/')">÷</button></div>
+
+            <!-- Row 2 -->
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('7')">7</button></div>
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('8')">8</button></div>
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('9')">9</button></div>
+            <div class="col-3"><button type="button" class="btn btn-warning w-100 fw-bold shadow-sm"
+                    onclick="calcAppend('*')">×</button></div>
+
+            <!-- Row 3 -->
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('4')">4</button></div>
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('5')">5</button></div>
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('6')">6</button></div>
+            <div class="col-3"><button type="button" class="btn btn-warning w-100 fw-bold shadow-sm"
+                    onclick="calcAppend('-')">-</button></div>
+
+            <!-- Row 4 -->
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('1')">1</button></div>
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('2')">2</button></div>
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('3')">3</button></div>
+            <div class="col-3"><button type="button" class="btn btn-warning w-100 fw-bold shadow-sm"
+                    onclick="calcAppend('+')">+</button></div>
+
+            <!-- Row 5 -->
+            <div class="col-6"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('0')">0</button></div>
+            <div class="col-3"><button type="button" class="btn btn-light border w-100 fw-bold bg-white shadow-sm"
+                    onclick="calcAppend('.')">.</button></div>
+            <div class="col-3"><button type="button" class="btn btn-primary w-100 fw-bold shadow-sm"
+                    onclick="calcEval()">=</button></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Calculator Logic
+    const calcDisp = document.getElementById('calc-display');
+    let isCalcError = false;
+
+    function toggleCalculator() {
+        const calc = document.getElementById('exam-calculator');
+        if (calc.style.display === 'none' || calc.style.display === '') {
+            calc.style.display = 'block';
+            calcDisp.value = '';
+            calcDisp.focus();
+        } else {
+            calc.style.display = 'none';
+        }
+    }
+
+    function calcAppend(val) {
+        if (isCalcError) { calcDisp.value = ''; isCalcError = false; }
+        // Prevent multiple operators or decimals in a bad sequence (basic)
+        calcDisp.value += val;
+    }
+
+    function calcClear() {
+        calcDisp.value = '';
+        isCalcError = false;
+    }
+
+    function calcDel() {
+        if (isCalcError) { calcClear(); return; }
+        calcDisp.value = calcDisp.value.slice(0, -1);
+    }
+
+    function calcEval() {
+        if (calcDisp.value.trim() === '') return;
+        try {
+            // Function constructor securely evaluates basic arithmetic logic
+            const result = new Function('return ' + calcDisp.value)();
+            if (!isFinite(result)) throw "Math Error";
+            // Check decimal length
+            calcDisp.value = (result % 1 !== 0) ? result.toFixed(4).replace(/\.?0+$/, "") : result;
+        } catch (e) {
+            calcDisp.value = 'Error';
+            isCalcError = true;
+        }
+    }
+
+    // Draggable Logic
+    const calcEl = document.getElementById('exam-calculator');
+    const calcHeader = document.getElementById('calc-header');
+
+    let isDraggingCalc = false;
+    let calcOffsetX = 0;
+    let calcOffsetY = 0;
+
+    calcHeader.addEventListener('mousedown', (e) => {
+        isDraggingCalc = true;
+        calcOffsetX = e.clientX - calcEl.getBoundingClientRect().left;
+        calcOffsetY = e.clientY - calcEl.getBoundingClientRect().top;
+        document.addEventListener('mousemove', onCalcMouseMove);
+        document.addEventListener('mouseup', onCalcMouseUp);
+    });
+
+    function onCalcMouseMove(e) {
+        if (!isDraggingCalc) return;
+        calcEl.style.left = `${e.clientX - calcOffsetX}px`;
+        calcEl.style.top = `${e.clientY - calcOffsetY}px`;
+        calcEl.style.right = 'auto'; // Remove fixed right so left position works properly
+    }
+
+    function onCalcMouseUp() {
+        isDraggingCalc = false;
+        document.removeEventListener('mousemove', onCalcMouseMove);
+        document.removeEventListener('mouseup', onCalcMouseUp);
+    }
+</script>
