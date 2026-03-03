@@ -108,8 +108,8 @@ class ExamQuestion(models.Model):
 class ExamTestCase(models.Model):
     """Test cases for Coding Questions in Exam"""
     question = models.ForeignKey(ExamQuestion, on_delete=models.CASCADE, related_name='test_cases')
-    input_data = models.TextField()
-    expected_output = models.TextField()
+    input_data = models.TextField(blank=True, null=True)
+    expected_output = models.TextField(blank=True, null=True)
 
 class StudentExamAttempt(models.Model):
     user = models.ForeignKey(
