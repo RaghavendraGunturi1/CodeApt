@@ -10,16 +10,33 @@ from .models import (
 class ProgramAdmin(admin.ModelAdmin):
     list_display = ('name',)
 
-# Add this above SubjectAdmin
-class EnrollmentInline(admin.TabularInline):
-    model = Enrollment
-    extra = 1  # Allows you to manually add a student via a new row
-    autocomplete_fields = ['user']  # Recommended if you have many users
+from django.contrib.admin.widgets import FilteredSelectMultiple
+from django.contrib.auth.models import User
+from django import forms
+
+class SubjectAdminForm(forms.ModelForm):
+    enrolled_users = forms.ModelMultipleChoiceField(
+        queryset=User.objects.all().order_by('username'),
+        required=False,
+        widget=FilteredSelectMultiple("Enrolled Users", is_stacked=False),
+        help_text="Select users from the left box and move them to the right to enroll them. To unenroll, move them to the left."
+    )
+
+    class Meta:
+        model = Subject
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['enrolled_users'].initial = User.objects.filter(enrollments__subject=self.instance)
 
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    # Added visibility and popularity to the list view
-    list_display = ('name', 'program', 'price', 'is_visible', 'is_popular')
+    form = SubjectAdminForm
+    
+    # Added visibility, popularity, and student_count to the list view
+    list_display = ('name', 'program', 'price', 'is_visible', 'is_popular', 'student_count')
     
     # Allows you to toggle these directly in the list view
     list_editable = ('is_visible', 'is_popular')
@@ -29,11 +46,30 @@ class SubjectAdmin(admin.ModelAdmin):
     # Useful filters for managing content
     list_filter = ('program', 'is_visible', 'is_popular')
     search_fields = ('name',)
-    inlines = [EnrollmentInline]
+    
     # Optional: Shows the number of students in the list view
     def student_count(self, obj):
         return obj.enrollments.count() # Assumes related_name='enrollments' in your model
     student_count.short_description = "Students"
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        subject = form.instance
+        if 'enrolled_users' in form.cleaned_data:
+            selected_users = form.cleaned_data['enrolled_users']
+            selected_user_ids = set(u.id for u in selected_users)
+            
+            # Use Enrollment model to update relationships manually
+            from .models import Enrollment
+            current_user_ids = set(Enrollment.objects.filter(subject=subject).values_list('user_id', flat=True))
+            
+            to_add = selected_user_ids - current_user_ids
+            to_remove = current_user_ids - selected_user_ids
+            
+            if to_remove:
+                Enrollment.objects.filter(subject=subject, user_id__in=to_remove).delete()
+            if to_add:
+                Enrollment.objects.bulk_create([Enrollment(subject=subject, user_id=uid) for uid in to_add])
 
 from django.contrib import admin
 from django.urls import path

@@ -1,0 +1,282 @@
+diff --git a/templates/assessments/take_section_exam.html b/templates/assessments/take_section_exam.html
+index ce351cb..fc0cf2f 100644
+--- a/templates/assessments/take_section_exam.html
++++ b/templates/assessments/take_section_exam.html
+@@ -195,25 +195,85 @@
+                 {% endfor %}
+             </form>
+ 
+-            <div class="d-flex justify-content-between mt-4 mb-5 p-3 bg-white rounded shadow-sm border">
+-                <button onclick="prevQuestion()" id="btn-prev" class="btn btn-outline-dark px-4 fw-bold"
+-                    disabled>Previous</button>
+-                <button onclick="nextQuestion()" id="btn-next" class="btn btn-primary px-4 fw-bold">Next</button>
++            <div
++                class="d-flex justify-content-between align-items-center mt-4 mb-5 p-3 bg-white rounded shadow-sm border">
++                <button onclick="prevQuestion()" id="btn-prev" class="btn btn-outline-dark px-4 fw-bold" disabled>
++                    <i class="bi bi-arrow-left"></i> Previous
++                </button>
++
++                <div class="d-flex gap-2">
++                    <button onclick="clearResponse()" type="button"
++                        class="btn btn-outline-danger px-3 d-none d-md-block" title="Clear your answer">
++                        <i class="bi bi-eraser-fill"></i> Clear
++                    </button>
++                    <button onclick="toggleReview()" type="button" id="btn-review"
++                        class="btn btn-outline-warning text-dark px-3 fw-bold" title="Mark for later review">
++                        <i class="bi bi-flag-fill"></i> Review
++                    </button>
++                </div>
++
++                <button onclick="nextQuestion()" id="btn-next" class="btn btn-primary px-4 fw-bold">
++                    Next <i class="bi bi-arrow-right"></i>
++                </button>
+             </div>
+         </div>
+ 
+         <div class="bg-white border-start shadow-sm d-none d-md-block"
+-            style="width: 280px; height: calc(100vh - 60px); overflow-y: auto;">
++            style="width: 320px; height: calc(100vh - 60px); overflow-y: auto;">
+             <div class="p-3">
+-                <h6 class="fw-bold text-uppercase text-muted mb-3">Palette</h6>
+-                <div class="d-grid gap-2" style="grid-template-columns: repeat(4, 1fr);">
++                <h6 class="fw-bold text-uppercase text-muted mb-3">Question Palette</h6>
++                <div class="d-grid gap-2" style="grid-template-columns: repeat(5, 1fr);">
+                     {% for q in questions %}
+                     <button onclick="jumpToQuestion({{ forloop.counter0 }})" id="palette_btn_{{ forloop.counter0 }}"
+-                        class="btn btn-outline-secondary btn-sm fw-bold palette-btn">{{ forloop.counter }}</button>
++                        class="btn btn-outline-secondary btn-sm fw-bold palette-btn" style="width: 100%; height: 40px;">
++                        {{ forloop.counter }}
++                    </button>
+                     {% endfor %}
+                 </div>
+-                <hr>
+-                <button onclick="clearResponse()" class="btn btn-outline-danger btn-sm w-100">Clear Answer</button>
++
++                <div class="mt-4 small border-top pt-3">
++                    <div class="row g-2">
++                        <div class="col-6 d-flex align-items-center">
++                            <div class="rounded-circle bg-success me-2" style="width:10px; height:10px;"></div> Answered
++                        </div>
++                        <div class="col-6 d-flex align-items-center">
++                            <div class="rounded-circle bg-warning me-2" style="width:10px; height:10px;"></div> Review
++                        </div>
++                        <div class="col-6 d-flex align-items-center">
++                            <div class="rounded-circle bg-primary me-2" style="width:10px; height:10px;"></div> Current
++                        </div>
++                        <div class="col-6 d-flex align-items-center">
++                            <div class="rounded-circle bg-secondary bg-opacity-25 me-2"
++                                style="width:10px; height:10px;"></div> Unvisited
++                        </div>
++                    </div>
++                </div>
++            </div>
++        </div>
++    </div>
++</div>
++
++<!-- Custom Finish Section Modal -->
++<div class="modal fade" id="finishSectionModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
++    aria-labelledby="finishSectionModalLabel" aria-hidden="true">
++    <div class="modal-dialog modal-dialog-centered">
++        <div class="modal-content text-dark">
++            <div class="modal-header border-0 pb-0">
++                <h5 class="modal-title fw-bold text-danger" id="finishSectionModalLabel">
++                    <i class="bi bi-exclamation-triangle-fill me-2"></i> Submit Section
++                </h5>
++                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
++                    onclick="resumeExamTimer()"></button>
++            </div>
++            <div class="modal-body text-center py-4">
++                <p class="mb-1 fs-5 fw-medium">Are you sure you want to finish this section?</p>
++                <p class="text-muted small">You will not be able to change your answers after submission.</p>
++            </div>
++            <div class="modal-footer border-0 d-flex justify-content-between pt-0">
++                <button type="button" class="btn btn-outline-secondary px-4 fw-bold" data-bs-dismiss="modal"
++                    onclick="resumeExamTimer()">Cancel</button>
++                <button type="button" class="btn btn-danger px-4 fw-bold" onclick="confirmFinishSection()">Yes,
++                    Submit</button>
+             </div>
+         </div>
+     </div>
+@@ -231,6 +291,17 @@
+ </div>
+ 
+ <style>
++    /* Hide navbar during exams to prevent navigation */
++    .navbar {
++        display: none !important;
++    }
++
++    body,
++    .container-fluid {
++        margin-top: 0 !important;
++        padding-top: 0 !important;
++    }
++
+     .hover-shadow:hover {
+         background-color: #f8f9fa;
+     }
+@@ -239,6 +310,7 @@
+         cursor: pointer;
+     }
+ 
++    /* Palette Styles */
+     .palette-btn.active {
+         border: 2px solid #0d6efd !important;
+         color: #0d6efd !important;
+@@ -249,6 +321,12 @@
+         color: white !important;
+         border-color: #198754;
+     }
++
++    .palette-btn.review {
++        background-color: #ffc107 !important;
++        color: black !important;
++        border-color: #ffc107;
++    }
+ </style>
+ {% endblock %}
+ 
+@@ -299,6 +377,7 @@
+ 
+     let currentQuestionIndex = 0;
+     let answeredQuestions = new Set();
++    let reviewQuestions = new Set();
+     let examEditors = {};
+     let timerInterval;
+     let monacoReady = false;
+@@ -388,6 +467,7 @@
+         }
+         updateButtons();
+         updatePalette();
++        updateReviewUI();
+     }
+ 
+     function nextQuestion() { if (currentQuestionIndex < TOTAL_QUESTIONS - 1) showQuestion(currentQuestionIndex + 1); }
+@@ -403,12 +483,47 @@
+         for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+             const btn = document.getElementById(`palette_btn_${i}`);
+             btn.className = 'btn btn-outline-secondary btn-sm fw-bold palette-btn';
+-            if (answeredQuestions.has(i)) btn.classList.add('answered');
++
++            if (reviewQuestions.has(i)) {
++                btn.classList.add('review');
++            } else if (answeredQuestions.has(i)) {
++                btn.classList.add('answered');
++            }
++
+             if (i === currentQuestionIndex) btn.classList.add('active');
+         }
+     }
+ 
+-    function markAnswered(index) { answeredQuestions.add(index); updatePalette(); }
++    function toggleReview() {
++        if (reviewQuestions.has(currentQuestionIndex)) {
++            reviewQuestions.delete(currentQuestionIndex);
++        } else {
++            reviewQuestions.add(currentQuestionIndex);
++        }
++        updatePalette();
++        updateReviewUI();
++    }
++
++    function updateReviewUI() {
++        const btn = document.getElementById('btn-review');
++        if (!btn) return;
++
++        if (reviewQuestions.has(currentQuestionIndex)) {
++            btn.classList.remove('btn-outline-warning');
++            btn.classList.add('btn-warning');
++            btn.innerHTML = '<i class="bi bi-flag-fill"></i> Unflag';
++        } else {
++            btn.classList.add('btn-outline-warning');
++            btn.classList.remove('btn-warning');
++            btn.innerHTML = '<i class="bi bi-flag"></i> Review';
++        }
++    }
++
++    function markAnswered(index) {
++        answeredQuestions.add(index);
++        reviewQuestions.delete(index); // Removing review flag if they answer it
++        updatePalette();
++    }
+ 
+     function clearResponse() {
+         const card = document.getElementById(`q_card_${currentQuestionIndex}`);
+@@ -419,6 +534,9 @@
+     }
+ 
+     // --- SUBMISSION ---
++    let pendingAutoSubmit = false;
++    let pendingForceEnd = false;
++
+     function finishSection(auto = false, forceEnd = false) {
+         const btn = document.getElementById('submit-btn');
+         if (btn && btn.disabled && !auto) return;
+@@ -426,10 +544,34 @@
+         clearInterval(timerInterval);
+         isReloading = true; // Stop warnings
+ 
+-        if (!auto && !confirm("Finish this section?")) {
+-            isReloading = false; startTimer(); return;
++        if (!auto) {
++            // Show custom modal instead of window.confirm
++            pendingAutoSubmit = auto;
++            pendingForceEnd = forceEnd;
++            const finishModal = new bootstrap.Modal(document.getElementById('finishSectionModal'));
++            finishModal.show();
++            return;
+         }
+ 
++        executeSubmission(auto, forceEnd);
++    }
++
++    function resumeExamTimer() {
++        if (!isReloading) return; // Prevent double trigger
++        isReloading = false;
++        startTimer();
++    }
++
++    function confirmFinishSection() {
++        const modalEl = document.getElementById('finishSectionModal');
++        const modalInstance = bootstrap.Modal.getInstance(modalEl);
++        if (modalInstance) modalInstance.hide();
++        executeSubmission(pendingAutoSubmit, pendingForceEnd);
++    }
++
++    function executeSubmission(auto = false, forceEnd = false) {
++        const btn = document.getElementById('submit-btn');
++
+         if (btn) {
+             btn.disabled = true;
+             btn.innerHTML = 'Processing...';
+@@ -464,7 +606,28 @@
+             .then(data => {
+                 if (data.status === 'next_section' || data.status === 'finished') {
+                     sessionStorage.removeItem('section_warnings');
+-                    window.location.href = data.redirect_url;
++
++                    // SPA Transition: Fetch next page and replace DOM
++                    fetch(data.redirect_url)
++                        .then(response => response.text())
++                        .then(html => {
++                            history.pushState(null, '', data.redirect_url);
++                            const newDoc = new DOMParser().parseFromString(html, 'text/html');
++                            document.title = newDoc.title;
++                            document.body.innerHTML = newDoc.body.innerHTML;
++
++                            // Re-execute scripts after replacing innerHTML
++                            Array.from(document.body.querySelectorAll('script')).forEach(oldScript => {
++                                const newScript = document.createElement('script');
++                                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
++                                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
++                                oldScript.parentNode.replaceChild(newScript, oldScript);
++                            });
++                        })
++                        .catch(err => {
++                            console.error("AJAX replacement failed, falling back to redirect:", err);
++                            window.location.href = data.redirect_url;
++                        });
+                 }
+             })
+             .catch(err => {

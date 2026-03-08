@@ -1,0 +1,28 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+<div id="content-main">
+    <form action="" method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <h2>Export Student Performance to Excel</h2>
+            <div class="form-row">
+                <div>
+                    <label class="required" for="id_college_name">College Name(s):</label>
+                    <select name="college_name" id="id_college_name" required multiple
+                        style="min-width: 300px; height: 200px; padding: 5px;">
+                        {% for college in colleges %}
+                        <option value="{{ college }}">{{ college }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="help">Hold down "Control", or "Command" on a Mac, to select more than one college.</div>
+                </div>
+            </div>
+        </fieldset>
+        <div class="submit-row">
+            <input type="submit" value="Download Excel Report" class="default" name="_save">
+        </div>
+    </form>
+</div>
+{% endblock %}

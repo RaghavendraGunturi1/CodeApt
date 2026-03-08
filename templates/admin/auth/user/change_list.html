@@ -1,0 +1,10 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+{{ block.super }}
+<li>
+    <a href="export_performance/" class="addlink" style="background-color: #28a745;">
+        Export Performance by College
+    </a>
+</li>
+{% endblock %}
