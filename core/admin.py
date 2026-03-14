@@ -24,7 +24,6 @@ class UserAdmin(BaseUserAdmin):
     inlines = (ProfileInline,)
     list_display = ('username', 'email', 'get_college', 'get_roll_number', 'get_state', 'is_active')
     list_filter = ('is_staff', 'is_superuser', 'profile__state') # Filter by State!
-    change_form_template = 'admin/auth/user/change_form.html'
 
     def get_college(self, obj):
         return obj.profile.college_name if hasattr(obj, 'profile') else "-"
