@@ -1,0 +1,23 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block after_field_sets %}
+{{ block.super }}
+
+{% if original %}
+<div style="margin: 15px 0; padding: 15px 20px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
+    <div>
+        <strong style="font-size: 14px;">🔐 Password Management</strong>
+        <p style="margin: 5px 0 0; color: #666; font-size: 13px;">
+            Raw passwords are not stored, so there is no way to see this user's password,
+            but you can change it using the button.
+        </p>
+    </div>
+    <a href="{{ original.pk }}/password/"
+       style="display: inline-block; padding: 10px 22px; background: #417690; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px; white-space: nowrap;">
+        Reset Password
+    </a>
+</div>
+{% endif %}
+
+{% endblock %}
