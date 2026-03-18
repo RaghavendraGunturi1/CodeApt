@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import path
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django import forms
+from django.db import models
 from .models import Exam, ExamSection, ExamQuestion, ExamTestCase, StudentExamAttempt
 from .forms import ExamUploadForm
 import pandas as pd
@@ -21,6 +23,12 @@ from .models import PublicExamLink, StudentExamAttempt
 class TestCaseInline(admin.TabularInline):
     model = ExamTestCase
     extra = 1
+    fields = ('input_data', 'expected_output', 'is_hidden')
+    formfield_overrides = {
+        models.TextField: {
+            'widget': forms.Textarea(attrs={'rows': 2, 'cols': 26, 'style': 'width: 260px;'})
+        },
+    }
 
 # 2. Inline for Sections (Manage sections inside the Exam page)
 class SectionInline(admin.TabularInline):

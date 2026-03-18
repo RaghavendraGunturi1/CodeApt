@@ -9,6 +9,9 @@ urlpatterns = [
     # CHANGED: We now submit sections, not the whole exam at once
     path('submit-section/<int:attempt_id>/', views.submit_section, name='submit_section'),
     
+    # NEW: Load section data for seamless transitions
+    path('load-section/<int:attempt_id>/', views.load_section_data, name='load_section'),
+    
     # Utilities
     path('check_code/<int:question_id>/', views.check_code, name='check_code'),
     path('run_code/', views.run_code_piston, name='run_code'), # Ensure you have a generic run view or reuse check_code logic

@@ -110,6 +110,14 @@ class ExamTestCase(models.Model):
     question = models.ForeignKey(ExamQuestion, on_delete=models.CASCADE, related_name='test_cases')
     input_data = models.TextField(blank=True, null=True)
     expected_output = models.TextField(blank=True, null=True)
+    is_hidden = models.BooleanField(
+        default=False,
+        help_text="Hidden test cases are not shown in 'Run Tests' but are used for final scoring."
+    )
+
+    def __str__(self):
+        visibility = "Hidden" if self.is_hidden else "Visible"
+        return f"{visibility} Test Case - Q{self.question_id}"
 
 class StudentExamAttempt(models.Model):
     user = models.ForeignKey(

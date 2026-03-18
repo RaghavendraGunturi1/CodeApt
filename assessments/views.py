@@ -315,8 +315,8 @@ def calculate_final_score(attempt):
 @login_required
 def check_code(request, question_id):
     """
-    Runs code against hidden test cases. 
-    Can be used during the exam for 'Run/Check' buttons.
+    Runs code against visible test cases only.
+    Hidden test cases are reserved for final scoring.
     """
     if request.method == "POST":
         data = json.loads(request.body)
@@ -324,7 +324,7 @@ def check_code(request, question_id):
         language = data.get('language', 'python')
         
         question = get_object_or_404(ExamQuestion, id=question_id)
-        test_cases = question.test_cases.all()
+        test_cases = question.test_cases.filter(is_hidden=False)
         
         passed_count = 0
         total_cases = test_cases.count()
@@ -494,10 +494,10 @@ def run_question_test_cases(request):
 
             # 1. Get Question & Test Cases
             question = ExamQuestion.objects.get(id=q_id)
-            test_cases = ExamTestCase.objects.filter(question=question)
+            test_cases = ExamTestCase.objects.filter(question=question, is_hidden=False)
 
             if not test_cases.exists():
-                return JsonResponse({'error': 'No test cases found for this question.'})
+                return JsonResponse({'error': 'No visible test cases found for this question.'})
 
             results = []
             all_passed = True
@@ -635,3 +635,78 @@ def export_exam_results(request, exam_id):
 
     workbook.save(response)
     return response
+
+
+# NEW: Load section data for seamless AJAX transitions
+def load_section_data(request, attempt_id):
+    """
+    AJAX endpoint to fetch next section data without page reload.
+    Returns JSON with question data, timer info, and section details.
+    """
+    attempt = get_object_or_404(StudentExamAttempt, id=attempt_id)
+    
+    # Auth checks
+    if attempt.user:
+        if not request.user.is_authenticated or attempt.user != request.user:
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+    else:
+        session_attempt = request.session.get("public_attempt_id")
+        if session_attempt != attempt.id:
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+    
+    section = attempt.current_section
+    if not section:
+        return JsonResponse({'status': 'error', 'message': 'No active section'}, status=400)
+    
+    # Calculate time left
+    elapsed = (timezone.now() - attempt.section_start_time).total_seconds()
+    duration_sec = section.duration_minutes * 60
+    time_left = max(0, duration_sec - elapsed)
+    
+    # Check if this is the last section
+    next_section_exists = ExamSection.objects.filter(
+        exam=attempt.exam,
+        order__gt=section.order
+    ).exists()
+    
+    # Build questions data
+    questions_data = []
+    for q in section.questions.all():
+        q_data = {
+            'id': q.id,
+            'type': q.q_type,
+            'text': q.text or '',
+            'image_url': q.image.url if q.image else None,
+            'marks': q.marks,
+            'starter_code': q.starter_code or '',
+        }
+        
+        if q.q_type in ['MCQ_SINGLE', 'MCQ_MULTI']:
+            q_data['options'] = {
+                '1': q.option_1,
+                '2': q.option_2,
+                '3': q.option_3,
+                '4': q.option_4,
+            }
+        
+        questions_data.append(q_data)
+    
+    return JsonResponse({
+        'status': 'success',
+        'section': {
+            'id': section.id,
+            'name': section.name,
+            'duration_minutes': section.duration_minutes,
+            'order': section.order,
+        },
+        'exam': {
+            'id': attempt.exam.id,
+            'topic_name': attempt.exam.topic.name if attempt.exam.topic else 'Unknown',
+            'total_sections': attempt.exam.sections.count(),
+        },
+        'attempt_id': attempt.id,
+        'time_left': int(time_left),
+        'current_section_index': list(attempt.exam.sections.order_by('order')).index(section) + 1,
+        'is_last_section': not next_section_exists,
+        'questions': questions_data,
+    })

@@ -1,6 +1,30 @@
 {% extends 'base.html' %}
 {% block content %}
 
+<div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 11000; pointer-events: none;">
+</div>
+
+<div id="confirm-modal" class="position-fixed top-50 start-50 translate-middle"
+    style="z-index: 10500; display: none; min-width: 400px;">
+    <div class="card shadow-lg border-0 rounded-3">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3 text-dark" id="confirm-title">Confirm Action</h5>
+            <p class="text-secondary mb-4" id="confirm-message">Are you sure?</p>
+            <div class="d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" onclick="dismissConfirmModal()">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="confirmAction()">
+                    Continue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-backdrop" class="position-fixed top-0 start-0 w-100 h-100 bg-dark"
+    style="z-index: 10490; display: none; opacity: 0.3;"></div>
+
 <div id="fullscreen-overlay"
     class="position-fixed top-0 start-0 w-100 h-100 bg-dark d-flex flex-column justify-content-center align-items-center"
     style="z-index: 10000; display: none;">
@@ -249,6 +273,81 @@
         color: white !important;
         border-color: #198754;
     }
+
+    /* Toast Notifications */
+    .toast-container {
+        pointer-events: auto !important;
+    }
+    
+    .toast {
+        min-width: 350px;
+        border-radius: 0.5rem;
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateX(500px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    .toast-header {
+        gap: 0.5rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .toast-body {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+    
+    /* Confirmation Modal */
+    #confirm-modal {
+        animation: fadeIn 0.2s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    #confirm-modal .card {
+        border-radius: 1rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    #confirm-modal .btn-primary {
+        background-color: #0d6efd;
+        border: none;
+        transition: all 0.2s;
+    }
+    
+    #confirm-modal .btn-primary:hover {
+        background-color: #0b5ed7;
+        transform: translateY(-2px);
+    }
+    
+    #confirm-modal .btn-outline-secondary {
+        transition: all 0.2s;
+    }
+    
+    #confirm-modal .btn-outline-secondary:hover {
+        transform: translateY(-2px);
+    }
 </style>
 {% endblock %}
 
@@ -281,6 +380,70 @@
 </script>
 
 <script>
+    // --- NOTIFICATION SYSTEM ---
+    function showToast(message, type = 'info', duration = 4000) {
+        const toastId = 'toast-' + Date.now();
+        const bgClass = {
+            'success': 'bg-success',
+            'error': 'bg-danger',
+            'warning': 'bg-warning text-dark',
+            'info': 'bg-info'
+        }[type] || 'bg-info';
+        
+        const html = `
+            <div id="${toastId}" class="toast show border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header ${bgClass} text-white border-0 fw-bold">
+                    ${type === 'success' ? '<i class="bi bi-check-circle-fill me-2"></i>' : ''}
+                    ${type === 'error' ? '<i class="bi bi-exclamation-circle-fill me-2"></i>' : ''}
+                    ${type === 'warning' ? '<i class="bi bi-exclamation-triangle-fill me-2"></i>' : ''}
+                    ${type === 'info' ? '<i class="bi bi-info-circle-fill me-2"></i>' : ''}
+                    ${type.charAt(0).toUpperCase() + type.slice(1)}
+                    <button type="button" class="btn-close btn-close-white ms-auto" onclick="document.getElementById('${toastId}').remove()"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            </div>
+        `;
+        
+        const container = document.getElementById('toast-container');
+        const toastEl = document.createElement('div');
+        toastEl.innerHTML = html;
+        container.appendChild(toastEl.firstElementChild);
+        
+        if (duration > 0) {
+            setTimeout(() => {
+                const el = document.getElementById(toastId);
+                if (el) el.remove();
+            }, duration);
+        }
+    }
+
+    // Custom Confirmation Modal
+    let pendingConfirmCallback = null;
+
+    function showConfirmModal(title, message, onConfirm) {
+        document.getElementById('confirm-title').innerText = title;
+        document.getElementById('confirm-message').innerText = message;
+        document.getElementById('confirm-modal').style.display = 'block';
+        document.getElementById('modal-backdrop').style.display = 'block';
+        pendingConfirmCallback = onConfirm;
+    }
+
+    function confirmAction() {
+        if (pendingConfirmCallback) {
+            pendingConfirmCallback();
+        }
+        dismissConfirmModal();
+    }
+
+    function dismissConfirmModal() {
+        document.getElementById('confirm-modal').style.display = 'none';
+        document.getElementById('modal-backdrop').style.display = 'none';
+        pendingConfirmCallback = null;
+    }
+</script>
+<script>
     // --- SAFE DATA LOADING ---
     const CODE_DATA = {};
     try {
@@ -293,7 +456,7 @@
 
     // --- VARIABLES ---
     let timeLeft = {{ time_left }};
-    const TOTAL_QUESTIONS = {{ questions| length }};
+    let TOTAL_QUESTIONS = {{ questions| length }};
     const MAX_WARNINGS = 2;
     let warningCount = 0;
 
@@ -367,10 +530,10 @@
         isAlertOpen = true; // Lock warnings
 
         if (warningCount > MAX_WARNINGS) {
-            alert(`Maximum warnings exceeded (${warningCount}/${MAX_WARNINGS}). The exam will now auto-submit.`);
+            showToast(`⚠️ Maximum warnings exceeded (${warningCount}/${MAX_WARNINGS}). The exam will now auto-submit.`, 'warning', 3000);
             finishSection(true, true);
         } else {
-            alert(`WARNING ${warningCount}/${MAX_WARNINGS}: ${reason}\n\nDo not switch tabs or windows.`);
+            showToast(`⚠️ WARNING ${warningCount}/${MAX_WARNINGS}: ${reason}. Do not switch tabs or windows.`, 'warning', 4000);
 
             // Unlock warnings after 1 second (gives time for focus to return)
             setTimeout(() => { isAlertOpen = false; }, 1000);
@@ -408,6 +571,26 @@
         }
     }
 
+    // Keep left section sidebar highlight in sync after AJAX transitions
+    function updateSectionSidebar(currentSectionIndex) {
+        const sectionItems = document.querySelectorAll('.list-group.list-group-flush .list-group-item');
+        if (!sectionItems.length) return;
+
+        sectionItems.forEach((item, idx) => {
+            const sectionNumber = idx + 1;
+
+            item.classList.remove('bg-primary', 'text-white', 'fw-bold', 'bg-light', 'text-success', 'text-muted');
+
+            if (sectionNumber === currentSectionIndex) {
+                item.classList.add('bg-primary', 'text-white', 'fw-bold');
+            } else if (sectionNumber < currentSectionIndex) {
+                item.classList.add('bg-light', 'text-success');
+            } else {
+                item.classList.add('text-muted');
+            }
+        });
+    }
+
     function markAnswered(index) { answeredQuestions.add(index); updatePalette(); }
 
     function clearResponse() {
@@ -418,18 +601,12 @@
         updatePalette();
     }
 
-    // --- SUBMISSION ---
-    function finishSection(auto = false, forceEnd = false) {
+    // Callback for confirmed section submission
+    function submitSectionConfirmed() {
         const btn = document.getElementById('submit-btn');
-        if (btn && btn.disabled && !auto) return;
-
         clearInterval(timerInterval);
-        isReloading = true; // Stop warnings
-
-        if (!auto && !confirm("Finish this section?")) {
-            isReloading = false; startTimer(); return;
-        }
-
+        isReloading = true;
+        
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = 'Processing...';
@@ -458,20 +635,283 @@
         fetch("{% url 'submit_section' attempt.id %}", {
             method: 'POST',
             headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ answers: answers, warnings: warningCount, force_end: forceEnd })
+            body: JSON.stringify({ answers: answers, warnings: warningCount, force_end: false })
         })
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'next_section' || data.status === 'finished') {
+                if (data.status === 'next_section') {
+                    sessionStorage.removeItem('section_warnings');
+                    loadNextSectionAJAX(data.redirect_url);
+                } else if (data.status === 'finished') {
                     sessionStorage.removeItem('section_warnings');
                     window.location.href = data.redirect_url;
                 }
             })
             .catch(err => {
                 console.error(err);
-                alert("Submission failed. Check internet.");
+                showToast('❌ Submission failed. Check your internet connection.', 'error', 5000);
                 if (btn) btn.disabled = false;
+                isReloading = false;
+                startTimer();
             });
+    }
+    // --- SUBMISSION ---
+    function finishSection(auto = false, forceEnd = false) {
+        const btn = document.getElementById('submit-btn');
+        if (btn && btn.disabled && !auto) return;
+
+        clearInterval(timerInterval);
+        isReloading = true; // Stop warnings
+
+
+        if (!auto) {
+            isReloading = false;
+            showConfirmModal(
+                "Confirm Submission",
+                "Are you sure you want to finish this section?",
+                submitSectionConfirmed
+            );
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = 'Processing...';
+        }
+        let answers = {};
+        const formData = new FormData(document.getElementById('examForm'));
+        for (let [key, value] of formData.entries()) {
+            if (key.startsWith('q_')) {
+                let qId = key.replace('q_', '');
+                if (answers[qId]) {
+                    if (Array.isArray(answers[qId])) answers[qId].push(value);
+                    else answers[qId] = [answers[qId], value];
+                } else { answers[qId] = value; }
+            }
+        }
+
+        for (let [qId, editor] of Object.entries(examEditors)) {
+            if (editor) {
+                try {
+                    answers[qId] = { 'code': editor.getValue(), 'language': document.getElementById(`lang_${qId}`).value };
+                } catch (e) { }
+            }
+        }
+
+        fetch("{% url 'submit_section' attempt.id %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers: answers, warnings: warningCount, force_end: true })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'next_section') {
+                    // Seamless transition to next section without reload
+                    sessionStorage.removeItem('section_warnings');
+                    loadNextSectionAJAX(data.redirect_url);
+                } else if (data.status === 'finished') {
+                    // Exam complete - redirect as normal
+                    sessionStorage.removeItem('section_warnings');
+                    window.location.href = data.redirect_url;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('❌ Auto-submit failed. Please check your connection.', 'error', 5000);
+                if (btn) btn.disabled = false;
+                isReloading = false;
+                startTimer();
+            });
+    }
+
+    // NEW: Load next section seamlessly via AJAX
+    function loadNextSectionAJAX(redirectUrl) {
+        // Extract attempt ID from redirect URL or use current
+        const attemptId = {{ attempt.id }};
+        
+        fetch(`/assessments/load-section/${attemptId}/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // 1. Reset all editors and state
+                    examEditors = {};
+                    answeredQuestions.clear();
+                    currentQuestionIndex = 0;
+                    warningCount = 0;
+                    
+                    // 2. Update TOTAL_QUESTIONS for new section
+                    TOTAL_QUESTIONS = data.questions.length;
+                    
+                    // 3. Update section info in header
+                    document.querySelector('.badge.bg-warning').innerText = data.section.name;
+                    document.querySelector('h5.m-0.text-truncate').innerText = data.exam.topic_name;
+                    updateSectionSidebar(data.current_section_index);
+                    
+                    // 4. Re-render all questions with new data
+                    const formEl = document.getElementById('examForm');
+                    formEl.innerHTML = '';
+                    
+                    data.questions.forEach((q, idx) => {
+                        const questionCard = createQuestionCard(q, idx);
+                        formEl.appendChild(questionCard);
+                    });
+                    
+                    // 5. Regenerate palette buttons
+                    const paletteContainer = document.querySelector('[style*="grid-template-columns: repeat(4"]');
+                    if (paletteContainer) {
+                        paletteContainer.innerHTML = '';
+                        data.questions.forEach((q, idx) => {
+                            const btn = document.createElement('button');
+                            btn.id = `palette_btn_${idx}`;
+                            btn.className = 'btn btn-outline-secondary btn-sm fw-bold palette-btn';
+                            btn.textContent = idx + 1;
+                            btn.onclick = () => jumpToQuestion(idx);
+                            paletteContainer.appendChild(btn);
+                        });
+                    }
+                    
+                    // 6. Reset timer with new section duration
+                    timeLeft = data.time_left;
+                    startTimer();
+                    
+                    // 7. Update submit button text
+                    const submitBtn = document.getElementById('submit-btn');
+                    if (data.is_last_section) {
+                        submitBtn.innerHTML = 'Submit Exam <i class="bi bi-check-circle-fill"></i>';
+                    } else {
+                        submitBtn.innerHTML = 'Save & Next Section <i class="bi bi-chevron-right"></i>';
+                    }
+                    submitBtn.disabled = false;
+                    
+                    // 8. Load Monaco editor for code questions and show first question
+                    showQuestion(0);
+                    
+                    // 9. Restore security checks
+                    isReloading = false;
+                    sessionStorage.removeItem('section_warnings');
+                    
+                    console.log('✅ Section loaded seamlessly without reload');
+                } else {
+                    showToast('❌ Error loading next section. Redirecting to exam...', 'error', 3000);
+                    window.location.href = redirectUrl;
+                }
+            })
+            .catch(err => {
+                console.error('AJAX load error:', err);
+                showToast('❌ Error loading section. Redirecting to exam...', 'error', 3000);
+                window.location.href = redirectUrl;
+            });
+    }
+
+    // NEW: Helper to create question cards dynamically
+    function createQuestionCard(q, index) {
+        const card = document.createElement('div');
+        card.className = 'question-card card shadow-sm border-0 mb-3';
+        card.id = `q_card_${index}`;
+        card.style.display = 'none';
+        
+        let contentHTML = '';
+        
+        if (q.text) {
+            contentHTML += `<h5 class="fw-bold mb-3" style="white-space: pre-wrap;">${q.text}</h5>`;
+        }
+        
+        if (q.image_url) {
+            contentHTML += `<div class="mb-4 text-center"><img src="${q.image_url}" class="img-fluid rounded border shadow-sm" style="max-height: 300px;"></div>`;
+        }
+        
+        if (q.type === 'MCQ_SINGLE') {
+            contentHTML += '<div class="d-flex flex-column gap-2">';
+            Object.entries(q.options).filter(([_, val]) => val).forEach(([key, val]) => {
+                contentHTML += `<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center">
+                    <input class="form-check-input me-3" type="radio" name="q_${q.id}" value="${key}" onchange="markAnswered(${index})"> ${val}
+                </label>`;
+            });
+            contentHTML += '</div>';
+        } else if (q.type === 'MCQ_MULTI') {
+            contentHTML += '<div class="d-flex flex-column gap-2">';
+            Object.entries(q.options).filter(([_, val]) => val).forEach(([key, val]) => {
+                contentHTML += `<label class="p-3 border rounded hover-shadow cursor-pointer d-flex align-items-center">
+                    <input class="form-check-input me-3" type="checkbox" name="q_${q.id}" value="${key}" onchange="markAnswered(${index})"> ${val}
+                </label>`;
+            });
+            contentHTML += '</div>';
+        } else if (q.type === 'CODE') {
+            contentHTML += `
+            <div class="mt-2" data-is-code="true" data-qid="${q.id}" data-index="${index}">
+                <div class="row g-0 border rounded overflow-hidden">
+                    <div class="col-md-8 border-end">
+                        <div id="editor_${q.id}" style="height: 400px; width: 100%;"></div>
+                    </div>
+                    <div class="col-md-4 bg-light d-flex flex-column border-start" style="height: 400px;">
+                        <ul class="nav nav-tabs nav-fill bg-white border-bottom" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active small py-2 fw-bold" id="custom-tab-${q.id}" data-bs-toggle="tab" data-bs-target="#custom-content-${q.id}" type="button">Custom Input</button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link small py-2 fw-bold" id="results-tab-${q.id}" data-bs-toggle="tab" data-bs-target="#results-content-${q.id}" type="button">Test Results</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content flex-grow-1 position-relative">
+                            <div class="tab-pane fade show active position-absolute top-0 start-0 w-100 h-100 p-2 d-flex flex-column" id="custom-content-${q.id}">
+                                <textarea id="input_${q.id}" class="form-control border-0 shadow-none mb-2 resize-none" style="flex-shrink: 0;" rows="3" placeholder="Enter custom input here..."></textarea>
+                                <div class="p-1 bg-secondary text-white small fw-bold rounded-top">Output:</div>
+                                <pre id="output_${q.id}" class="flex-grow-1 p-2 m-0 bg-dark text-success small font-monospace rounded-bottom" style="overflow-y: auto;">Ready.</pre>
+                            </div>
+                            <div class="tab-pane fade position-absolute top-0 start-0 w-100 h-100" id="results-content-${q.id}" style="overflow-y: auto; background-color: #f8f9fa;">
+                                <div id="test_results_${q.id}" class="p-0">
+                                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted small py-5">
+                                        <i class="bi bi-play-circle fs-1 mb-2 opacity-50"></i>
+                                        <div>Click "Run Tests" to validate.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-2 border-top bg-white z-1">
+                            <select id="lang_${q.id}" class="form-select form-select-sm mb-2">
+                                <option value="python">Python</option>
+                                <option value="java">Java</option>
+                                <option value="cpp">C++</option>
+                                <option value="c">C</option>
+                                <option value="javascript">JavaScript</option>
+                            </select>
+                            <div class="d-flex gap-2">
+                                <button type="button" onclick="runCustomCode('${q.id}')" class="btn btn-sm btn-outline-dark flex-grow-1 fw-bold">Run Custom</button>
+                                <button type="button" onclick="runTestCases('${q.id}')" class="btn btn-sm btn-primary flex-grow-1 fw-bold">Run Tests</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        
+        card.innerHTML = `
+            <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between">
+                <span class="fw-bold text-secondary">Question ${index + 1}</span>
+                <span class="badge bg-secondary">${q.marks} Marks</span>
+            </div>
+            <div class="card-body p-4">
+                ${contentHTML}
+            </div>
+        `;
+        
+        return card;
+    }
+
+    // NEW: Update section palette on left sidebar
+    function updateSectionPalette(totalSections, currentIndex) {
+        const palette = document.querySelector('[style*="grid-template-columns: repeat(4"]');
+        if (palette) palette.innerHTML = '';
+    }
+
+    function updatePalette() {
+        for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+            const btn = document.getElementById(`palette_btn_${i}`);
+            if (!btn) continue; // Skip if button not in DOM yet
+            btn.className = 'btn btn-outline-secondary btn-sm fw-bold palette-btn';
+            if (answeredQuestions.has(i)) btn.classList.add('answered');
+            if (i === currentQuestionIndex) btn.classList.add('active');
+        }
     }
 
     // --- MONACO ---
