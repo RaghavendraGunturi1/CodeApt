@@ -701,7 +701,7 @@
         fetch("{% url 'submit_section' attempt.id %}", {
             method: 'POST',
             headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ answers: answers, warnings: warningCount, force_end: true })
+            body: JSON.stringify({ answers: answers, warnings: warningCount, force_end: forceEnd })
         })
             .then(res => res.json())
             .then(data => {
