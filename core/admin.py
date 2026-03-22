@@ -5,7 +5,8 @@ from .models import Profile
 from django.urls import path
 from django.shortcuts import render
 from django.http import HttpResponse
-from django.db.models import Avg
+from django.db.models import Avg, Count, Q, F, Case, When, Value, DecimalField, Sum, FloatField, IntegerField, Expression
+from django.db.models.functions import Coalesce, Cast
 import pandas as pd
 
 from curriculum.models import TopicProgress, QuizSubmission, Topic
@@ -47,68 +48,104 @@ class UserAdmin(BaseUserAdmin):
     def export_performance_view(self, request):
         if request.method == 'POST':
             college_names = request.POST.getlist('college_name')
-            users = User.objects.filter(profile__college_name__in=college_names)
             
+            # ✅ OPTIMIZED: Single annotated query instead of N+1 queries
+            users = (User.objects
+                .filter(profile__college_name__in=college_names)
+                .select_related('profile', 'streak')
+                .annotate(
+                    # Total topics completed
+                    total_topics=Count('topic_progress', filter=Q(topic_progress__is_completed=True)),
+                    # Videos watched
+                    videos_watched=Count('topic_progress', filter=Q(topic_progress__is_completed=True, topic_progress__topic__topic_type='video')),
+                    # Quiz stats - Cast to float to avoid type mismatch
+                    quiz_count=Count('quiz_submissions'),
+                    quiz_score_sum=Coalesce(Sum(Cast('quiz_submissions__score', FloatField())), Value(0.0, output_field=FloatField())),
+                    quiz_total_sum=Coalesce(Sum(Cast('quiz_submissions__total_questions', FloatField())), Value(0.0, output_field=FloatField())),
+                    # Exam stats
+                    exam_count=Count('studentexamattempt', filter=Q(studentexamattempt__completed_at__isnull=False)),
+                    avg_warnings=Coalesce(Avg('studentexamattempt__warnings_triggered'), Value(0.0, output_field=FloatField())),
+                )
+                .values(
+                    'id', 'username', 'email', 'date_joined', 'last_login',
+                    'profile__full_name', 'profile__roll_number', 'profile__college_name', 'profile__state',
+                    'total_topics', 'videos_watched', 'quiz_count', 'quiz_score_sum', 'quiz_total_sum',
+                    'exam_count', 'avg_warnings',
+                    'streak__total_score', 'streak__current_streak', 'streak__max_streak'
+                )
+            )
+            
+            # ✅ Fetch exam names in batch (prevents querying individual attempts)
+            exam_attempts = (StudentExamAttempt.objects
+                .filter(user__profile__college_name__in=college_names, completed_at__isnull=False)
+                .values('user__id', 'exam__topic__name')
+                .annotate(attempt_count=Count('id'))
+                .order_by('user__id')
+            )
+            
+            # Build a lookup dict for exam attempts
+            exam_attempts_by_user = {}
+            for item in exam_attempts:
+                user_id = item['user__id']
+                exam_name = item['exam__topic__name'] or "Unknown"
+                if user_id not in exam_attempts_by_user:
+                    exam_attempts_by_user[user_id] = {}
+                exam_attempts_by_user[user_id][exam_name] = item['attempt_count']
+            
+            # ✅ Fetch total exam time in batch (simplified approach)
+            exam_times = (StudentExamAttempt.objects
+                .filter(user__profile__college_name__in=college_names, completed_at__isnull=False, started_at__isnull=False)
+                .values('user__id', 'completed_at', 'started_at')
+            )
+            
+            exam_times_by_user = {}
+            for item in exam_times:
+                user_id = item['user__id']
+                if user_id not in exam_times_by_user:
+                    exam_times_by_user[user_id] = 0
+                time_diff = (item['completed_at'] - item['started_at']).total_seconds() / 60
+                exam_times_by_user[user_id] += time_diff
+            
+            # Build data list
             data = []
             for u in users:
-                prof = getattr(u, 'profile', None)
-                if not prof:
-                    continue
+                user_id = u['id']
                 
-                # 1. Course Status & Progress
-                total_topics = TopicProgress.objects.filter(user=u, is_completed=True).count()
-                videos_watched = TopicProgress.objects.filter(user=u, is_completed=True, topic__topic_type='video').count()
+                # Calculate average quiz score
+                if u['quiz_count'] > 0 and u['quiz_total_sum'] > 0:
+                    avg_quiz_score = (u['quiz_score_sum'] / u['quiz_total_sum']) * 100
+                else:
+                    avg_quiz_score = 0
                 
-                # 2. Quiz Performance
-                quizzes = QuizSubmission.objects.filter(user=u)
-                avg_quiz_score = sum(q.percentage for q in quizzes) / quizzes.count() if quizzes.exists() else 0
+                # Build exam attempts string
+                test_attempts_dict = exam_attempts_by_user.get(user_id, {})
+                test_attempts_str = " | ".join([f"{k}: {v}" for k, v in test_attempts_dict.items()])
                 
-                # 3. Exam Performance
-                attempts = StudentExamAttempt.objects.filter(user=u)
-                total_mock_attempts = attempts.count()
-                avg_warnings = attempts.aggregate(Avg('warnings_triggered'))['warnings_triggered__avg'] or 0
+                # Get exam time
+                total_exam_time_minutes = exam_times_by_user.get(user_id, 0)
                 
-                # Exam time
-                total_exam_time_minutes = 0
-                test_attempts = {}
-                for att in attempts:
-                    exam_name = str(att.exam) if att.exam else "Unknown"
-                    test_attempts[exam_name] = test_attempts.get(exam_name, 0) + 1
-                    
-                    if att.completed_at and att.started_at:
-                        diff = (att.completed_at - att.started_at).total_seconds() / 60.0
-                        total_exam_time_minutes += diff
-                
-                test_attempts_str = " | ".join([f"{k}: {v}" for k, v in test_attempts.items()])
-                
-                # 4. Engagement Metrics
-                try:
-                    streak = UserStreak.objects.get(user=u)
-                    total_score = streak.total_score
-                    current_streak = streak.current_streak
-                    longest_streak = streak.max_streak
-                except UserStreak.DoesNotExist:
-                    total_score = 0
-                    current_streak = 0
-                    longest_streak = 0
+                # Get streak data (or defaults)
+                total_score = u['streak__total_score'] or 0
+                current_streak = u['streak__current_streak'] or 0
+                longest_streak = u['streak__max_streak'] or 0
                 
                 data.append({
-                    'Name': prof.full_name,
-                    'Email': u.email,
-                    'Roll Number': prof.roll_number,
-                    'College Name': prof.college_name,
-                    'State': prof.state,
-                    'Date Joined': u.date_joined.strftime('%Y-%m-%d %H:%M') if u.date_joined else '',
-                    'Last Login': u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else '',
+                    'Name': u['profile__full_name'],
+                    'Email': u['email'],
+                    'Roll Number': u['profile__roll_number'],
+                    'College Name': u['profile__college_name'],
+                    'State': u['profile__state'],
+                    'Date Joined': u['date_joined'].strftime('%Y-%m-%d %H:%M') if u['date_joined'] else '',
+                    'Last Login': u['last_login'].strftime('%Y-%m-%d %H:%M') if u['last_login'] else '',
                     
-                    'Total Topics Completed': total_topics,
-                    'Videos Watched': videos_watched,
+                    'Total Topics Completed': u['total_topics'],
+                    'Videos Watched': u['videos_watched'],
                     'Average Quiz Score (%)': round(avg_quiz_score, 2),
                     
-                    'Total Mock Attempts': total_mock_attempts,
+                    'Total Mock Attempts': u['exam_count'],
                     'Attempts per Test': test_attempts_str,
                     'Total Exam Time (Mins)': round(total_exam_time_minutes, 2),
-                    'Average Warnings': round(avg_warnings, 2),
+                    'Average Warnings': round(float(u['avg_warnings']), 2),
                     
                     'Challenges Score': total_score,
                     'Current Streak': current_streak,
