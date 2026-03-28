@@ -102,7 +102,15 @@ class ExamAdmin(admin.ModelAdmin):
             try:
                 # 1. Read Excel
                 df = pd.read_excel(excel_file)
+                # Normalize headers: handle spaces/case/hyphens from manual Excel edits.
+                df.columns = [str(col).strip().lower().replace(' ', '_').replace('-', '_') for col in df.columns]
                 df = df.fillna('')
+
+                def get_col_value(row, *keys, default=''):
+                    for key in keys:
+                        if key in row.index:
+                            return row.get(key, default)
+                    return default
                 
                 success_count = 0
                 errors = [] # List to track failures
@@ -124,9 +132,9 @@ class ExamAdmin(admin.ModelAdmin):
                         continue
 
                     # --- PROCESS SECTION ---
-                    sec_name = str(row.get('section_name', 'Part A - General')).strip()
+                    sec_name = str(get_col_value(row, 'section_name', 'section', default='Part A - General')).strip()
                     try:
-                        sec_duration = int(row.get('section_duration', 30))
+                        sec_duration = int(get_col_value(row, 'section_duration', 'duration', default=30))
                     except (ValueError, TypeError):
                         sec_duration = 30
                     
@@ -137,11 +145,11 @@ class ExamAdmin(admin.ModelAdmin):
                     )
 
                     # --- VALIDATION 2: CONTENT CHECK ---
-                    raw_text = row.get('question_text', '')
+                    raw_text = get_col_value(row, 'question_text', 'question', 'questiontext', 'q_text', default='')
                     q_text = str(raw_text).replace('_x000D_', '').strip()
                     if q_text.lower() == 'nan': q_text = ""
 
-                    image_url = str(row.get('image_url', '')).strip()
+                    image_url = str(get_col_value(row, 'image_url', 'image', 'img_url', 'image_link', default='')).strip()
                     if image_url.lower() == 'nan': image_url = ""
 
                     # If BOTH text and image are empty, skip row
@@ -152,23 +160,26 @@ class ExamAdmin(admin.ModelAdmin):
                     # --- CREATE QUESTION ---
                     try:
                         try:
-                            marks = int(row.get('marks', 5))
+                            marks = int(get_col_value(row, 'marks', default=5))
                         except (ValueError, TypeError):
                             marks = 5
 
-                        q_type = str(row['type']).strip().upper()
+                        q_type = str(get_col_value(row, 'type', 'question_type', default='')).strip().upper()
+                        if not q_type:
+                            errors.append(f"Row {row_num}: Skipped (Missing 'type')")
+                            continue
                         
                         q = ExamQuestion.objects.create(
                             section=section,
                             q_type=q_type,
                             text=q_text,
                             marks=marks,
-                            option_1=str(row.get('option_1', '')).strip(),
-                            option_2=str(row.get('option_2', '')).strip(),
-                            option_3=str(row.get('option_3', '')).strip(),
-                            option_4=str(row.get('option_4', '')).strip(),
-                            correct_options=str(row.get('correct_option', '')).strip(),
-                            starter_code=str(row.get('starter_code', '')).replace('_x000D_', '').strip()
+                            option_1=str(get_col_value(row, 'option_1', 'option1', default='')).strip(),
+                            option_2=str(get_col_value(row, 'option_2', 'option2', default='')).strip(),
+                            option_3=str(get_col_value(row, 'option_3', 'option3', default='')).strip(),
+                            option_4=str(get_col_value(row, 'option_4', 'option4', default='')).strip(),
+                            correct_options=str(get_col_value(row, 'correct_option', 'correct_options', 'correctanswer', default='')).strip(),
+                            starter_code=str(get_col_value(row, 'starter_code', 'startercode', default='')).replace('_x000D_', '').strip()
                         )
 
                         # --- HANDLE IMAGE (With Google Drive Logic) ---
@@ -195,8 +206,8 @@ class ExamAdmin(admin.ModelAdmin):
                         # --- HANDLE TEST CASES ---
                         if q_type == 'CODE':
                             for i in range(1, 6):
-                                inp = str(row.get(f'input{i}', '')).replace('_x000D_', '').strip()
-                                out = str(row.get(f'output{i}', '')).replace('_x000D_', '').strip()
+                                inp = str(get_col_value(row, f'input{i}', default='')).replace('_x000D_', '').strip()
+                                out = str(get_col_value(row, f'output{i}', default='')).replace('_x000D_', '').strip()
                                 if inp and out:
                                     ExamTestCase.objects.create(question=q, input_data=inp, expected_output=out)
                         
