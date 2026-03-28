@@ -58,7 +58,12 @@ class ExamAdmin(admin.ModelAdmin):
 
     def upload_excel(self, request):
         if request.method == "POST":
-            excel_file = request.FILES["file"]
+            form = ExamUploadForm(request.POST, request.FILES, admin_site=self.admin_site)
+            if not form.is_valid():
+                return render(request, "admin/exam_upload.html", {"form": form})
+
+            selected_topic = form.cleaned_data["topic"]
+            excel_file = form.cleaned_data["file"]
             try:
                 # 1. Read Excel
                 df = pd.read_excel(excel_file)
@@ -72,7 +77,7 @@ class ExamAdmin(admin.ModelAdmin):
                     row_num = index + 2  # +2 because Excel header is row 1
                     
                     # --- VALIDATION 1: TOPIC NAME ---
-                    topic_name = str(row.get('topic_name', '')).strip()
+                    topic_name = selected_topic.name if selected_topic else str(row.get('topic_name', '')).strip()
                     if not topic_name: 
                         errors.append(f"Row {row_num}: Skipped (Missing 'topic_name')")
                         continue
@@ -184,7 +189,7 @@ class ExamAdmin(admin.ModelAdmin):
                 messages.error(request, f"Critical Error processing file: {str(e)}")
                 return redirect("..")
 
-        form = ExamUploadForm()
+        form = ExamUploadForm(admin_site=self.admin_site)
         return render(request, "admin/exam_upload.html", {"form": form})
         
 # 3. Register Section Admin

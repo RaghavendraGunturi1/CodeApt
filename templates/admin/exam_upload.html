@@ -1,4 +1,11 @@
 {% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+{{ form.media }}
+<script src="{% static 'admin/js/admin/RelatedObjectLookups.js' %}"></script>
+{% endblock %}
 
 {% block content %}
 <div style="max-width: 600px; margin: 20px;">
@@ -13,10 +20,18 @@
         </p>
     </div>
 
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div style="margin-bottom: 20px;">
+            {{ form.as_p }}
+        </div>
+        <input type="submit" value="Upload & Process" class="default" style="padding: 10px 20px; background: #417690; color: white; border: none; cursor: pointer;">
+    </form>
+
     <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #ddd;">
         <strong>Required Excel Columns:</strong>
         <ul style="font-family: monospace; font-size: 13px; color: #333; line-height: 1.6;">
-            <li><strong>topic_name</strong> (Must match an existing Exam Topic exactly)</li>
+            <li><strong>Topic is selected from the dropdown above</strong> (Use the + icon to add a new Topic)</li>
             <li style="color: #0056b3;"><strong>section_name</strong> (Optional. e.g., 'Part A - Logical'. Groups questions together)</li>
             <li style="color: #0056b3;"><strong>section_duration</strong> (Optional. Duration in minutes for that section)</li>
             <li><strong>type</strong> (MCQ_SINGLE, MCQ_MULTI, or CODE)</li>
@@ -29,13 +44,5 @@
             <li><strong>input1, output1, ... input5, output5</strong> (Test cases)</li>
         </ul>
     </div>
-
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <div style="margin-bottom: 20px;">
-            {{ form.as_p }}
-        </div>
-        <input type="submit" value="Upload & Process" class="default" style="padding: 10px 20px; background: #417690; color: white; border: none; cursor: pointer;">
-    </form>
 </div>
 {% endblock %}
