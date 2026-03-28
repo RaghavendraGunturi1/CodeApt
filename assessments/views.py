@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
+from django.db.models import F
 import json
 import requests 
 from .models import (
@@ -9,6 +10,7 @@ from .models import (
     ExamSection,
     ExamQuestion,
     StudentExamAttempt,
+    ExamAttemptCounter,
     Topic,
     ExamTestCase,
     PublicExamLink  # ← ADD THIS
@@ -26,6 +28,14 @@ def start_exam(request, topic_id):
         exam = topic.exam
     except Exam.DoesNotExist:
         return render(request, 'error.html', {'message': 'No exam found for this topic.'})
+
+    # ✅ CHECK ATTEMPT LIMIT
+    attempt_count = exam.get_user_attempt_count(request.user)
+    if attempt_count >= exam.max_attempts:
+        return render(request, 'error.html', {
+            'message': 'Maximum attempts for this exam are exceeded. Contact support for queries.',
+            'title': 'Exam Attempts Exceeded'
+        })
 
     attempt, created = StudentExamAttempt.objects.get_or_create(
         user=request.user, 
@@ -190,6 +200,15 @@ def submit_section(request, attempt_id):
             attempt.save()
 
             calculate_final_score(attempt)
+
+            # Increment restriction counter only when a logged-in user's attempt is completed.
+            if attempt.user:
+                counter, _ = ExamAttemptCounter.objects.get_or_create(
+                    user=attempt.user,
+                    exam=attempt.exam,
+                    defaults={'attempt_count': 0},
+                )
+                ExamAttemptCounter.objects.filter(pk=counter.pk).update(attempt_count=F('attempt_count') + 1)
 
             return JsonResponse({
                 'status': 'finished',

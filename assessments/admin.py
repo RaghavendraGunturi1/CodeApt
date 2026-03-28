@@ -1,10 +1,18 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, reverse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django import forms
 from django.db import models
-from .models import Exam, ExamSection, ExamQuestion, ExamTestCase, StudentExamAttempt
+from .models import (
+    Exam,
+    ExamSection,
+    ExamQuestion,
+    ExamTestCase,
+    StudentExamAttempt,
+    ExamAttemptCounter,
+    ExamAttemptResetLog,
+)
 from .forms import ExamUploadForm
 import pandas as pd
 # Add these imports at the top
@@ -37,9 +45,10 @@ class SectionInline(admin.TabularInline):
 
 @admin.register(Exam)
 class ExamAdmin(admin.ModelAdmin):
-    list_display = ('topic', 'total_marks')  # ✅ ADD THIS
+    list_display = ('topic', 'total_marks', 'max_attempts')  # ✅ ADD max_attempts
     inlines = [SectionInline]                # Add Sections here
-    change_list_template = "admin/assessments_changelist.html" 
+    change_list_template = "admin/assessments_changelist.html"
+    actions = ['reset_attempts_for_all_users']  # ✅ Add action 
 
     def get_urls(self):
         urls = super().get_urls()
@@ -55,6 +64,32 @@ class ExamAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         extra_context['export_public_url'] = f"{object_id}/export-public-results/"
         return super().change_view(request, object_id, form_url, extra_context)
+
+    def reset_attempts_for_all_users(self, request, queryset):
+        """Reset counters for selected exams, preserve StudentExamAttempt data."""
+        for exam in queryset:
+            counters = ExamAttemptCounter.objects.filter(exam=exam, attempt_count__gt=0)
+            reset_rows = 0
+            for counter in counters:
+                previous = counter.attempt_count
+                ExamAttemptResetLog.objects.create(
+                    user=counter.user,
+                    exam=counter.exam,
+                    reset_by=request.user if request.user.is_authenticated else None,
+                    previous_attempt_count=previous,
+                    new_attempt_count=0,
+                    note='Bulk reset from Exam admin action',
+                )
+                counter.attempt_count = 0
+                counter.reset_events += 1
+                counter.total_attempts_reset += previous
+                from django.utils import timezone
+                counter.last_reset_at = timezone.now()
+                counter.save(update_fields=['attempt_count', 'reset_events', 'total_attempts_reset', 'last_reset_at', 'updated_at'])
+                reset_rows += 1
+
+            self.message_user(request, f"Reset attempt counters for {exam.topic.name}: {reset_rows} user counter(s) reset")
+    reset_attempts_for_all_users.short_description = "Reset attempt counter for selected exams (keep attempt data)"
 
     def upload_excel(self, request):
         if request.method == "POST":
@@ -388,4 +423,84 @@ class StudentExamAttemptAdmin(admin.ModelAdmin):
         return obj.user is None
     is_public_attempt.boolean = True
     is_public_attempt.short_description = "Public?"
+
+
+@admin.register(ExamAttemptCounter)
+class ExamAttemptCounterAdmin(admin.ModelAdmin):
+    list_display = ('user', 'exam', 'attempt_count', 'reset_events', 'total_attempts_reset', 'last_reset_at', 'updated_at', 'reset_counter_button')
+    list_filter = ('exam',)
+    search_fields = ('user__username', 'user__email', 'exam__topic__name')
+    ordering = ('-updated_at',)
+    actions = ['reset_selected_counters']
+    readonly_fields = ('reset_counter_button',)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:counter_id>/reset-counter/',
+                self.admin_site.admin_view(self.reset_single_counter_view),
+                name='assessments_examattemptcounter_reset_single',
+            ),
+        ]
+        return custom_urls + urls
+
+    def _reset_counter(self, counter, request, note):
+        from django.utils import timezone
+
+        previous = counter.attempt_count
+        ExamAttemptResetLog.objects.create(
+            user=counter.user,
+            exam=counter.exam,
+            reset_by=request.user if request.user.is_authenticated else None,
+            previous_attempt_count=previous,
+            new_attempt_count=0,
+            note=note,
+        )
+        counter.attempt_count = 0
+        counter.reset_events += 1
+        counter.total_attempts_reset += previous
+        counter.last_reset_at = timezone.now()
+        counter.save(update_fields=['attempt_count', 'reset_events', 'total_attempts_reset', 'last_reset_at', 'updated_at'])
+
+    def reset_single_counter_view(self, request, counter_id):
+        counter = get_object_or_404(ExamAttemptCounter, id=counter_id)
+        self._reset_counter(counter, request, 'Direct reset from counter detail button')
+        self.message_user(
+            request,
+            f"Attempt counter reset for user '{counter.user.username}' in exam '{counter.exam}'. Attempt data was preserved.",
+        )
+        return redirect(reverse('admin:assessments_examattemptcounter_change', args=[counter.id]))
+
+    def reset_counter_button(self, obj):
+        if not obj or not obj.pk:
+            return '-'
+        url = reverse('admin:assessments_examattemptcounter_reset_single', args=[obj.pk])
+        return format_html('<a class="button" href="{}">Reset This Counter</a>', url)
+    reset_counter_button.short_description = 'Reset'
+
+    def reset_selected_counters(self, request, queryset):
+        reset_rows = 0
+
+        for counter in queryset.select_related('user', 'exam'):
+            self._reset_counter(counter, request, 'Reset from attempt counter admin action')
+            reset_rows += 1
+
+        self.message_user(request, f"Reset attempt counter for {reset_rows} selected record(s). Attempt data was preserved.")
+    reset_selected_counters.short_description = "Reset attempt count to 0 (selected users/exams)"
+
+
+@admin.register(ExamAttemptResetLog)
+class ExamAttemptResetLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'user', 'exam', 'previous_attempt_count', 'new_attempt_count', 'reset_by', 'note')
+    list_filter = ('exam', 'created_at')
+    search_fields = ('user__username', 'user__email', 'exam__topic__name', 'note')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at', 'user', 'exam', 'previous_attempt_count', 'new_attempt_count', 'reset_by', 'note')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 

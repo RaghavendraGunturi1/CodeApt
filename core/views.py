@@ -146,10 +146,27 @@ def topic_detail(request, topic_id):
     if request.user.is_authenticated:
         is_completed = TopicProgress.objects.filter(user=request.user, topic=topic, is_completed=True).exists()
     
+    # ✅ Add exam attempt info
+    attempt_count = 0
+    max_attempts = 2
+    attempts_blocked = False
+    
+    if topic.topic_type == 'exam':
+        try:
+            exam = topic.exam
+            max_attempts = exam.max_attempts
+            attempt_count = exam.get_user_attempt_count(request.user)
+            attempts_blocked = attempt_count >= max_attempts
+        except:
+            pass
+    
     context = {
         'topic': topic,
         'subject': subject,
-        'is_completed': is_completed, # Pass this to the template
+        'is_completed': is_completed,
+        'attempt_count': attempt_count,
+        'max_attempts': max_attempts,
+        'attempts_blocked': attempts_blocked,
     }
     return render(request, 'core/topic_detail.html', context)
 

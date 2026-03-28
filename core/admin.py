@@ -5,12 +5,13 @@ from .models import Profile
 from django.urls import path
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.utils import timezone
 from django.db.models import Avg, Count, Q, F, Case, When, Value, DecimalField, Sum, FloatField, IntegerField, Expression
 from django.db.models.functions import Coalesce, Cast
 import pandas as pd
 
 from curriculum.models import TopicProgress, QuizSubmission, Topic
-from assessments.models import StudentExamAttempt, Exam
+from assessments.models import StudentExamAttempt, Exam, ExamAttemptCounter, ExamAttemptResetLog
 from challenges.models import UserStreak
 
 # 1. This makes the Profile fields appear inside the User page
@@ -25,6 +26,7 @@ class UserAdmin(BaseUserAdmin):
     inlines = (ProfileInline,)
     list_display = ('username', 'email', 'get_college', 'get_roll_number', 'get_state', 'is_active')
     list_filter = ('is_staff', 'is_superuser', 'profile__state') # Filter by State!
+    actions = ('reset_exam_attempt_counters',)
 
     def get_college(self, obj):
         return obj.profile.college_name if hasattr(obj, 'profile') else "-"
@@ -44,6 +46,30 @@ class UserAdmin(BaseUserAdmin):
             path('export_performance/', self.admin_site.admin_view(self.export_performance_view), name='export_performance'),
         ]
         return custom_urls + urls
+
+    def reset_exam_attempt_counters(self, request, queryset):
+        reset_rows = 0
+        for user in queryset:
+            counters = ExamAttemptCounter.objects.filter(user=user, attempt_count__gt=0).select_related('exam')
+            for counter in counters:
+                previous = counter.attempt_count
+                ExamAttemptResetLog.objects.create(
+                    user=user,
+                    exam=counter.exam,
+                    reset_by=request.user if request.user.is_authenticated else None,
+                    previous_attempt_count=previous,
+                    new_attempt_count=0,
+                    note='Reset from User admin action',
+                )
+                counter.attempt_count = 0
+                counter.reset_events += 1
+                counter.total_attempts_reset += previous
+                counter.last_reset_at = timezone.now()
+                counter.save(update_fields=['attempt_count', 'reset_events', 'total_attempts_reset', 'last_reset_at', 'updated_at'])
+                reset_rows += 1
+
+        self.message_user(request, f'Reset attempt counters for {reset_rows} user-exam counter record(s). Attempt data preserved.')
+    reset_exam_attempt_counters.short_description = 'Reset exam attempt count for selected user(s)'
 
     def export_performance_view(self, request):
         if request.method == 'POST':
@@ -105,6 +131,26 @@ class UserAdmin(BaseUserAdmin):
                     exam_times_by_user[user_id] = 0
                 time_diff = (item['completed_at'] - item['started_at']).total_seconds() / 60
                 exam_times_by_user[user_id] += time_diff
+
+            # ✅ Fetch attempt counter + reset history in batch (preserves old attempt records)
+            counter_stats = (ExamAttemptCounter.objects
+                .filter(user__profile__college_name__in=college_names)
+                .values('user__id')
+                .annotate(
+                    current_attempt_counter=Coalesce(Sum('attempt_count'), Value(0)),
+                    reset_events_total=Coalesce(Sum('reset_events'), Value(0)),
+                    attempts_reset_total=Coalesce(Sum('total_attempts_reset'), Value(0)),
+                )
+            )
+
+            counter_stats_by_user = {
+                item['user__id']: {
+                    'current_attempt_counter': item['current_attempt_counter'],
+                    'reset_events_total': item['reset_events_total'],
+                    'attempts_reset_total': item['attempts_reset_total'],
+                }
+                for item in counter_stats
+            }
             
             # Build data list
             data = []
@@ -123,6 +169,12 @@ class UserAdmin(BaseUserAdmin):
                 
                 # Get exam time
                 total_exam_time_minutes = exam_times_by_user.get(user_id, 0)
+
+                # Get attempt counter/reset history
+                counter_info = counter_stats_by_user.get(user_id, {})
+                current_attempt_counter = counter_info.get('current_attempt_counter', 0)
+                reset_events_total = counter_info.get('reset_events_total', 0)
+                attempts_reset_total = counter_info.get('attempts_reset_total', 0)
                 
                 # Get streak data (or defaults)
                 total_score = u['streak__total_score'] or 0
@@ -144,6 +196,9 @@ class UserAdmin(BaseUserAdmin):
                     
                     'Total Mock Attempts': u['exam_count'],
                     'Attempts per Test': test_attempts_str,
+                    'Current Attempt Counter (Restriction)': current_attempt_counter,
+                    'Attempt Reset Events': reset_events_total,
+                    'Attempts Reset Total': attempts_reset_total,
                     'Total Exam Time (Mins)': round(total_exam_time_minutes, 2),
                     'Average Warnings': round(float(u['avg_warnings']), 2),
                     

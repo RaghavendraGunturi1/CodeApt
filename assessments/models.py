@@ -8,6 +8,7 @@ class Exam(models.Model):
     topic = models.OneToOneField(Topic, on_delete=models.CASCADE, related_name='exam')
     total_marks = models.IntegerField(default=100)
     pass_percentage = models.IntegerField(default=50)
+    max_attempts = models.IntegerField(default=2, help_text="Maximum attempts allowed for this exam")
     # Note: 'duration_minutes' is removed here as it is now handled per section
     
     # --- Fix 1: Inside the Exam class ---
@@ -16,6 +17,17 @@ class Exam(models.Model):
             return self.topic.name
         except (AttributeError, ObjectDoesNotExist):
             return f"Exam ID: {self.id} (Missing Topic)"
+    
+    def get_user_attempt_count(self, user):
+        """Count attempts from counter model (restriction-only, preserves attempt data)."""
+        if not user or not user.is_authenticated:
+            return 0
+        counter, _ = ExamAttemptCounter.objects.get_or_create(
+            user=user,
+            exam=self,
+            defaults={"attempt_count": 0},
+        )
+        return counter.attempt_count
 
 
 import uuid
@@ -42,6 +54,40 @@ class PublicExamLink(models.Model):
 
     def __str__(self):
         return f"Public Link - {self.exam.topic.name}"
+
+
+class ExamAttemptCounter(models.Model):
+    """Restriction counter per (user, exam). Does not remove attempt history."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='exam_attempt_counters')
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='attempt_counters')
+    attempt_count = models.IntegerField(default=0)
+    reset_events = models.IntegerField(default=0)
+    total_attempts_reset = models.IntegerField(default=0)
+    last_reset_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'exam')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.exam} ({self.attempt_count})"
+
+
+class ExamAttemptResetLog(models.Model):
+    """Audit trail for counter resets done by admins."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='exam_attempt_reset_logs')
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='attempt_reset_logs')
+    reset_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='performed_exam_attempt_resets')
+    previous_attempt_count = models.IntegerField(default=0)
+    new_attempt_count = models.IntegerField(default=0)
+    note = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Reset {self.user.username} - {self.exam} ({self.previous_attempt_count} -> {self.new_attempt_count})"
 
 class ExamSection(models.Model):
     """
