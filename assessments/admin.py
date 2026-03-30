@@ -60,6 +60,34 @@ class ExamAdmin(admin.ModelAdmin):
             ),
         ]
         return custom_urls + urls
+
+    def get_deleted_objects(self, objs, request):
+        """
+        Fast delete summary for Exam deletions.
+        Avoids Django's recursive collector UI for very large related datasets
+        (attempt counters, reset logs, attempts), which can be very slow.
+        """
+        exam_ids = [obj.id for obj in objs]
+
+        model_count = {
+            'exams': len(exam_ids),
+            'sections': ExamSection.objects.filter(exam_id__in=exam_ids).count(),
+            'questions': ExamQuestion.objects.filter(section__exam_id__in=exam_ids).count(),
+            'test cases': ExamTestCase.objects.filter(question__section__exam_id__in=exam_ids).count(),
+            'student attempts': StudentExamAttempt.objects.filter(exam_id__in=exam_ids).count(),
+            'public exam links': PublicExamLink.objects.filter(exam_id__in=exam_ids).count(),
+            'attempt counters': ExamAttemptCounter.objects.filter(exam_id__in=exam_ids).count(),
+            'attempt reset logs': ExamAttemptResetLog.objects.filter(exam_id__in=exam_ids).count(),
+        }
+
+        deleted_objects = [
+            'Large related data detected. Showing summary counts only for faster delete confirmation.'
+        ]
+
+        perms_needed = set()
+        protected = []
+        return deleted_objects, model_count, perms_needed, protected
+
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
         extra_context['export_public_url'] = f"{object_id}/export-public-results/"
