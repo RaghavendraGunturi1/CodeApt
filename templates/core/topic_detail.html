@@ -3,8 +3,6 @@
 {% block title %}{{ topic.name }} - CodeApt{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
 <div class="bg-light min-vh-100 py-5">
     <div class="container">
@@ -158,170 +156,197 @@
                         </button>
                     </div>
 
-                    <script>
-                        // Plyr Init
-                        document.addEventListener('DOMContentLoaded', () => {
-                            if (document.getElementById('player')) {
-                                const player = new Plyr('#player', {
-                                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'],
-                                    youtube: { noCookie: true, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1, controls: 0 }
-                                });
-                            }
-                        });
-                    </script>
-
-                    <style>
-                        .plyr__video-embed iframe {
-                            pointer-events: none;
-                        }
-
-                        .plyr__controls {
-                            pointer-events: auto;
-                        }
-
-                        .plyr {
-                            width: 100%;
-                            height: auto;
-                            --plyr-color-main: #0d6efd;
-                        }
-
-                        /* Ensure settings menu text and elements are clearly visible */
-                        .plyr .plyr__menu__container {
-                            background: rgba(30, 30, 30, 0.95) !important;
-                            color: #ffffff !important;
-                            border-radius: 8px !important;
-                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-                        }
-
-                        .plyr .plyr__menu__container .plyr__control {
-                            color: #ffffff !important;
-                            font-weight: 500 !important;
-                        }
-
-                        .plyr .plyr__menu__container .plyr__control:hover {
-                            background: rgba(255, 255, 255, 0.15) !important;
-                            color: #0d6efd !important;
-                        }
-
-                        .plyr .plyr__menu__container .plyr__control--forward::after,
-                        .plyr .plyr__menu__container .plyr__control--forward::before,
-                        .plyr .plyr__menu__container .plyr__control--back::after,
-                        .plyr .plyr__menu__container .plyr__control--back::before {
-                            border-left-color: #ffffff !important;
-                            border-right-color: #ffffff !important;
-                        }
-
-                        .plyr .plyr__menu__container .plyr__menu__value {
-                            color: #aaaaaa !important;
-                        }
-                    </style>
-
-                    <script
-                        src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js"></script>
-                    <script>
-                        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } });
-
-                        let editor;
-                        const defaultCode = {
-                            python: "print('Hello, CodeApt!')\n# Write your code here",
-                            java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, CodeApt!\");\n    }\n}",
-                            cpp: "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, CodeApt!\";\n    return 0;\n}",
-                            c: "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, CodeApt!\\n\");\n    return 0;\n}",
-                            javascript: "console.log('Hello, CodeApt!');"
-                        };
-
-                        require(['vs/editor/editor.main'], function () {
-                            editor = monaco.editor.create(document.getElementById('editor'), {
-                                value: defaultCode['python'],
-                                language: 'python',
-                                theme: 'vs',
-                                automaticLayout: true,
-                                minimap: { enabled: false },
-                                scrollBeyondLastLine: false,
-                                fontSize: 14
-                            });
-
-                            document.getElementById('languageSelect').addEventListener('change', function (e) {
-                                const lang = e.target.value;
-                                monaco.editor.setModelLanguage(editor.getModel(), lang);
-                                editor.setValue(defaultCode[lang]);
-                            });
-                        });
-
-                        function runCode() {
-                            const runBtn = document.getElementById('runBtn');
-                            const outputDiv = document.getElementById('output');
-                            const code = editor.getValue();
-                            const language = document.getElementById('languageSelect').value;
-                            const input = document.getElementById('customInput').value;
-
-                            runBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
-                            runBtn.disabled = true;
-                            outputDiv.innerText = "Executing...";
-
-                            fetch('/run_code/', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRFToken': '{{ csrf_token }}'
-                                },
-                                body: JSON.stringify({ code: code, language: language, input: input })
-                            })
-                                .then(response => response.json())
-                                .then(data => {
-                                    outputDiv.innerText = data.output;
-                                    runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
-                                    runBtn.disabled = false;
-                                })
-                                .catch(error => {
-                                    outputDiv.innerText = "Error: " + error;
-                                    runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
-                                    runBtn.disabled = false;
-                                });
-                        }
-                    </script>
-
-                    <script>
-                        function toggleCompletion() {
-                            const btn = document.getElementById('mark-complete-btn');
-                            const url = "{% url 'toggle_progress' topic.id %}";
-
-                            btn.innerHTML = 'Saving... <span class="spinner-border spinner-border-sm ms-2"></span>';
-                            btn.disabled = true;
-
-                            fetch(url, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRFToken': '{{ csrf_token }}',
-                                    'Content-Type': 'application/json'
-                                },
-                            })
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.status === 'success') {
-                                        if (data.is_completed) {
-                                            btn.classList.remove('btn-outline-success');
-                                            btn.classList.add('btn-success');
-                                            btn.innerHTML = 'Completed <i class="bi bi-check-circle-fill ms-2"></i>';
-                                        } else {
-                                            btn.classList.remove('btn-success');
-                                            btn.classList.add('btn-outline-success');
-                                            btn.innerHTML = 'Mark as Complete <i class="bi bi-check-circle ms-2"></i>';
-                                        }
-                                    }
-                                    btn.disabled = false;
-                                })
-                                .catch(error => {
-                                    console.error('Error:', error);
-                                    btn.innerHTML = 'Error!';
-                                });
-                        }
-                    </script>
-
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Plyr Init
+    document.addEventListener('DOMContentLoaded', () => {
+        const playerEl = document.getElementById('player');
+        if (playerEl && typeof Plyr !== 'undefined') {
+            const player = new Plyr(playerEl, {
+                youtube: { 
+                    noCookie: false,
+                    modestbranding: 1,
+                    origin: window.location.origin
+                }
+            });
+        }
+    });
+</script>
+
+<style>
+    .plyr__video-embed iframe {
+        pointer-events: none;
+    }
+
+    .plyr__controls {
+        pointer-events: auto;
+    }
+
+    .plyr {
+        width: 100%;
+        height: auto;
+        --plyr-color-main: #0d6efd;
+    }
+
+    /* Ensure settings menu text and elements are clearly visible */
+    .plyr .plyr__menu__container {
+        background: rgba(30, 30, 30, 0.95) !important;
+        color: #ffffff !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .plyr .plyr__menu__container .plyr__control {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+    }
+
+    .plyr .plyr__menu__container .plyr__control:hover {
+        background: rgba(255, 255, 255, 0.15) !important;
+        color: #0d6efd !important;
+    }
+
+    .plyr .plyr__menu__container .plyr__control--forward::after,
+    .plyr .plyr__menu__container .plyr__control--forward::before,
+    .plyr .plyr__menu__container .plyr__control--back::after,
+    .plyr .plyr__menu__container .plyr__control--back::before {
+        border-left-color: #ffffff !important;
+        border-right-color: #ffffff !important;
+    }
+
+    .plyr .plyr__menu__container .plyr__menu__value {
+        color: #aaaaaa !important;
+    }
+</style>
+
+<script>
+    // Monaco Loader
+    function initMonaco() {
+        if (typeof require === 'undefined') {
+            const script = document.createElement('script');
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs/loader.min.js";
+            script.onload = () => {
+                require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs' } });
+                startMonaco();
+            };
+            document.head.appendChild(script);
+        } else {
+            startMonaco();
+        }
+    }
+
+    let editor;
+    const defaultCode = {
+        python: "print('Hello, CodeApt!')\n# Write your code here",
+        java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, CodeApt!\");\n    }\n}",
+        cpp: "#include <iostream>\n\nint main() {\n    std::cout << \"Hello, CodeApt!\";\n    return 0;\n}",
+        c: "#include <stdio.h>\n\nint main() {\n    printf(\"Hello, CodeApt!\\n\");\n    return 0;\n}",
+        javascript: "console.log('Hello, CodeApt!');"
+    };
+
+    function startMonaco() {
+        require(['vs/editor/editor.main'], function () {
+            const editorEl = document.getElementById('editor');
+            if (!editorEl) return;
+            
+            editor = monaco.editor.create(editorEl, {
+                value: defaultCode['python'],
+                language: 'python',
+                theme: 'vs',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 14
+            });
+
+            document.getElementById('languageSelect').addEventListener('change', function (e) {
+                const lang = e.target.value;
+                if (editor) {
+                    monaco.editor.setModelLanguage(editor.getModel(), lang);
+                    editor.setValue(defaultCode[lang]);
+                }
+            });
+        });
+    }
+
+    function runCode() {
+        const runBtn = document.getElementById('runBtn');
+        const outputDiv = document.getElementById('output');
+        if (!editor) return;
+        
+        const code = editor.getValue();
+        const language = document.getElementById('languageSelect').value;
+        const input = document.getElementById('customInput').value;
+
+        runBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+        runBtn.disabled = true;
+        outputDiv.innerText = "Executing...";
+
+        fetch('/run_code/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ code: code, language: language, input: input })
+        })
+        .then(response => response.json())
+        .then(data => {
+            outputDiv.innerText = data.output;
+            runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
+            runBtn.disabled = false;
+        })
+        .catch(error => {
+            outputDiv.innerText = "Error: " + error;
+            runBtn.innerHTML = '<i class="bi bi-play-fill"></i> Run Code';
+            runBtn.disabled = false;
+        });
+    }
+
+    function toggleCompletion() {
+        const btn = document.getElementById('mark-complete-btn');
+        const url = "{% url 'toggle_progress' topic.id %}";
+
+        btn.innerHTML = 'Saving... <span class="spinner-border spinner-border-sm ms-2"></span>';
+        btn.disabled = true;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                if (data.is_completed) {
+                    btn.classList.remove('btn-outline-success');
+                    btn.classList.add('btn-success');
+                    btn.innerHTML = 'Completed <i class="bi bi-check-circle-fill ms-2"></i>';
+                } else {
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-success');
+                    btn.innerHTML = 'Mark as Complete <i class="bi bi-check-circle ms-2"></i>';
+                }
+            }
+            btn.disabled = false;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.innerHTML = 'Error!';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', initMonaco);
+</script>
 {% endblock %}
