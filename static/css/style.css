@@ -151,6 +151,29 @@ span:not([class*="text-"]) {
     margin-bottom: 20px;
 }
 
+/* Course image wrappers */
+.course-image-shell {
+    height: 180px;
+    overflow: hidden;
+    background: #0f172a;
+}
+
+.course-image-shell--tall {
+    height: 200px;
+}
+
+.course-image-cover {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.course-image-shell img {
+    display: block;
+}
+
 /* =========================================
    5. STATS SECTION
    ========================================= */
@@ -238,7 +261,6 @@ html {
 
 @supports (height: 100dvh) {
     .min-vh-100 { min-height: 100dvh !important; }
-    .h-100 { height: 100dvh !important; }
 }
 
 /* Flex Gap Fallback for very old Safari */

@@ -105,9 +105,9 @@
 
         <div class="col-lg-4">
             <div class="card border-0 shadow-lg sticky-top" style="top: 100px;">
-                <div class="bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                <div class="course-image-shell course-image-shell--tall d-flex align-items-center justify-content-center">
                     {% if subject.image %}
-                        <img src="{{ subject.image.url }}" class="img-fluid w-100 h-100 object-fit-cover">
+                        <img src="{{ subject.image.url }}" class="course-image-cover" alt="{{ subject.name }}">
                     {% else %}
                         <i class="bi bi-code-square display-1 text-secondary opacity-25"></i>
                     {% endif %}

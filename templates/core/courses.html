@@ -16,9 +16,9 @@
         <div class="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay="{{ forloop.counter0|add:100 }}">
             <div class="card h-100 border-0 shadow-sm hover-lift overflow-hidden">
                 
-                <div class="bg-dark text-white d-flex align-items-center justify-content-center" style="height: 180px;">
+                <div class="course-image-shell d-flex align-items-center justify-content-center">
                     {% if course.image %}
-                        <img src="{{ course.image.url }}" alt="{{ course.name }}" class="img-fluid w-100 h-100 object-fit-cover">
+                        <img src="{{ course.image.url }}" alt="{{ course.name }}" class="course-image-cover">
                     {% else %}
                         <div class="text-center">
                             <i class="bi bi-code-square fs-1 text-white-50"></i>
@@ -67,6 +67,5 @@
 <style>
     .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
     .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; }
-    .object-fit-cover { object-fit: cover; }
 </style>
 {% endblock %}
