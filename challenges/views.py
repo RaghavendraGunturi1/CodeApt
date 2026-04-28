@@ -11,6 +11,7 @@ import json
 from django.db.models import Q
 from .models import DailyQuestion, UserStreak, DailySubmission, TestCase
 from core.utils import execute_code_piston
+from concurrent.futures import ThreadPoolExecutor
 
 @login_required(login_url='login')
 def daily_challenge(request):
@@ -72,22 +73,28 @@ def submit_code(request, question_id):
             total_cases = test_cases.count()
             results = []
 
-            # Run against Central Piston Utility for every test case
-            for test in test_cases:
-                # CALL CENTRAL UTILITY
-                # This handles DevTunnel headers, Timeouts, and Errors automatically.
-                api_out = execute_code_piston(user_code, language, test.input_data)
+            # ✅ OPTIMIZED: Run against Central Piston Utility in Parallel
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                # Map futures to their respective test case
+                future_to_test = {
+                    executor.submit(execute_code_piston, user_code, language, test.input_data): test
+                    for test in test_cases
+                }
                 
-                # Normalize outputs
-                clean_actual = api_out.strip()
-                clean_expected = test.expected_output.strip()
-                
-                # Check match
-                if clean_actual == clean_expected:
-                    score += 1
-                    results.append(True)
-                else:
-                    results.append(False)
+                for future in future_to_test:
+                    test = future_to_test[future]
+                    try:
+                        api_out = future.result(timeout=15)
+                        clean_actual = api_out.strip()
+                        clean_expected = test.expected_output.strip()
+                        
+                        if clean_actual == clean_expected:
+                            score += 1
+                            results.append(True)
+                        else:
+                            results.append(False)
+                    except Exception:
+                        results.append(False)
 
             # Update Streak (Your existing logic)
             # Ensure update_user_progress is imported or defined in this file

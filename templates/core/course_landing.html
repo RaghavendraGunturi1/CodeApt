@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}{{ subject.name }} - CodeApt{% endblock %}
 
 {% block content %}
-<div class="bg-dark text-white py-5" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+<div class="bg-dark text-white py-5" data-subject-slug="{{ subject.slug }}" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
     <div class="container py-4">
         <div class="row">
             <div class="col-lg-8">
@@ -115,11 +116,12 @@
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center mb-3">
                         {% if subject.discount_price %}
-                            <h2 class="fw-bold mb-0 me-2">₹{{ subject.discount_price }}</h2>
-                            <span class="text-muted text-decoration-line-through">₹{{ subject.price }}</span>
+                            <h2 id="price-current" class="fw-bold mb-0 me-2">₹{{ subject.discount_price }}</h2>
+                            <span id="price-original" class="text-muted text-decoration-line-through">₹{{ subject.price }}</span>
                             <span class="badge bg-danger-subtle text-danger ms-auto">OFFER</span>
                         {% else %}
-                            <h2 class="fw-bold mb-0">₹{{ subject.price }}</h2>
+                            <h2 id="price-current" class="fw-bold mb-0">₹{{ subject.price }}</h2>
+                            <span id="price-original" class="d-none"></span>
                         {% endif %}
                     </div>
 
@@ -130,7 +132,14 @@
                             </button>
                             <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">Go to Dashboard</a>
                         {% else %}
-                            <a href="{% url 'initiate_payment' subject.slug %}" class="btn btn-primary btn-lg fw-bold shadow-sm">
+                            <div class="mb-3">
+                                <div class="input-group">
+                                    <input type="text" id="coupon-input" class="form-control" placeholder="Have a coupon code? Enter here">
+                                    <button class="btn btn-outline-secondary" id="apply-coupon-btn" type="button">Apply</button>
+                                </div>
+                                <small id="coupon-feedback" class="text-success d-none"></small>
+                            </div>
+                            <a href="{% url 'initiate_payment' subject.slug %}" id="buy-now-btn" class="btn btn-primary btn-lg fw-bold shadow-sm">
                                 Buy Now <i class="bi bi-lightning-charge-fill ms-2"></i>
                             </a>
                             <small class="text-muted d-block text-center mt-2" style="font-size: 0.8rem;">
@@ -152,4 +161,9 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="{% static 'js/course_coupon.js' %}"></script>
 {% endblock %}

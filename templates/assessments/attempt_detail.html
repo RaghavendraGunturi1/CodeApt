@@ -1,6 +1,31 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="container py-5">
+    {% if grading_pending %}
+    <div class="alert alert-info d-flex align-items-center mb-4 shadow-sm" role="alert">
+        <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+        <div>
+            <h5 class="alert-heading fw-bold mb-1">Result is being prepared</h5>
+            <p class="mb-0">Your submission has been received. Grading is running in the background and this page will refresh automatically when ready.</p>
+        </div>
+    </div>
+    <script>
+        (function(){
+            const poll = async () => {
+                try {
+                    const res = await fetch('{% url "result_status" attempt.id %}');
+                    const data = await res.json();
+                    if (data.grading_status === 'DONE') {
+                        window.location.reload();
+                        return;
+                    }
+                } catch (e) {}
+                setTimeout(poll, 2000);
+            };
+            setTimeout(poll, 1500);
+        })();
+    </script>
+    {% endif %}
     
     {% if is_malpractice %}
     <div class="alert alert-danger d-flex align-items-center mb-4 shadow-sm" role="alert">

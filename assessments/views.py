@@ -1,10 +1,16 @@
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import F
+from django.db import transaction
+from django.core.cache import cache
 import json
 import requests 
+from concurrent.futures import ThreadPoolExecutor
+import threading
+from core.utils import execute_code_piston
 from .models import (
     Exam,
     ExamSection,
@@ -13,13 +19,11 @@ from .models import (
     ExamAttemptCounter,
     Topic,
     ExamTestCase,
-    PublicExamLink  # ← ADD THIS
+    PublicExamLink
 )
 
 def run_code_piston(code, lang, stdin):
     return execute_code_piston(code, lang, stdin)
-
-# In assessments/views.py
 
 @login_required
 def start_exam(request, topic_id):
@@ -37,11 +41,14 @@ def start_exam(request, topic_id):
             'title': 'Exam Attempts Exceeded'
         })
 
-    attempt, created = StudentExamAttempt.objects.get_or_create(
-        user=request.user, 
-        exam=exam,
-        completed_at__isnull=True 
-    )
+    attempt = (StudentExamAttempt.objects
+               .filter(user=request.user, exam=exam, completed_at__isnull=True)
+               .order_by('-id')
+               .first())
+    created = False
+    if not attempt:
+        attempt = StudentExamAttempt.objects.create(user=request.user, exam=exam)
+        created = True
 
     # 1. Initialize Section if needed
     if created or not attempt.current_section:
@@ -67,17 +74,76 @@ def start_exam(request, topic_id):
         order__gt=attempt.current_section.order
     ).exists()
 
+    sections = list(exam.sections.order_by('order').prefetch_related('questions'))
+    current_section_index = next((idx for idx, sec in enumerate(sections, start=1) if sec.id == attempt.current_section_id), 1)
+
     context = {
         'exam': exam,
         'section': attempt.current_section,
         'questions': attempt.current_section.questions.all(),
         'attempt': attempt,
         'time_left': int(time_left),
-        'total_sections': exam.sections.count(),
-        'current_section_index': list(exam.sections.order_by('order')).index(attempt.current_section) + 1,
+        'total_sections': len(sections),
+        'current_section_index': current_section_index,
         'is_last_section': not next_section_exists,  # <--- PASS THIS TO TEMPLATE
     }
     return render(request, 'assessments/take_section_exam.html', context)
+
+
+def _section_payload_cache_key(section_id):
+    return f"assessment_section_payload:{section_id}"
+
+
+def _build_section_payload(section):
+    questions_data = []
+    questions = section.questions.all()
+    for q in questions:
+        q_data = {
+            'id': q.id,
+            'type': q.q_type,
+            'text': q.text or '',
+            'image_url': q.image.url if q.image else None,
+            'marks': q.marks,
+            'starter_code': q.starter_code or '',
+        }
+        if q.q_type in ['MCQ_SINGLE', 'MCQ_MULTI']:
+            q_data['options'] = {
+                '1': q.option_1,
+                '2': q.option_2,
+                '3': q.option_3,
+                '4': q.option_4,
+            }
+        questions_data.append(q_data)
+    return questions_data
+
+
+def _get_cached_section_questions(section):
+    key = _section_payload_cache_key(section.id)
+    payload = cache.get(key)
+    if payload is None:
+        payload = _build_section_payload(section)
+        cache.set(key, payload, 300)
+    return payload
+
+
+def _start_background_grading(attempt_id):
+    def _worker():
+        try:
+            attempt = StudentExamAttempt.objects.select_related('exam', 'exam__topic').get(id=attempt_id)
+            calculate_final_score(attempt)
+            StudentExamAttempt.objects.filter(id=attempt_id).update(
+                grading_status='DONE',
+                grading_error='',
+                graded_at=timezone.now(),
+            )
+        except Exception as exc:
+            StudentExamAttempt.objects.filter(id=attempt_id).update(
+                grading_status='FAILED',
+                grading_error=str(exc),
+                graded_at=timezone.now(),
+            )
+
+    threading.Thread(target=_worker, daemon=True).start()
 
 
 # In assessments/views.py
@@ -197,9 +263,11 @@ def submit_section(request, attempt_id):
         else:
             attempt.completed_at = timezone.now()
             attempt.current_section = None
+            attempt.grading_status = 'PROCESSING'
+            attempt.grading_error = ''
             attempt.save()
 
-            calculate_final_score(attempt)
+            transaction.on_commit(lambda: _start_background_grading(attempt.id))
 
             # Increment restriction counter only when a logged-in user's attempt is completed.
             if attempt.user:
@@ -293,18 +361,25 @@ def calculate_final_score(attempt):
                 passed_cases = 0
                 total_cases = test_cases.count()
                 
-                for tc in test_cases:
-                    # Run code using the secure external API (Piston)
-                    # This replaces the unsafe 'subprocess' logic
-                    actual_output = execute_code_piston(user_code, user_lang, tc.input_data)
+                # ✅ OPTIMIZED: Run test cases in parallel to avoid timeouts
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    # Prepare the work (calling execute_code_piston)
+                    futures = [
+                        executor.submit(execute_code_piston, user_code, user_lang, tc.input_data)
+                        for tc in test_cases
+                    ]
                     
-                    # Normalize outputs (strip whitespace/newlines for fair comparison)
-                    clean_actual = actual_output.strip()
-                    clean_expected = tc.expected_output.strip()
-                    
-                    # Compare
-                    if clean_actual == clean_expected:
-                        passed_cases += 1
+                    # Gather results
+                    for i, future in enumerate(futures):
+                        try:
+                            actual_output = future.result(timeout=15)
+                            clean_actual = actual_output.strip()
+                            clean_expected = test_cases[i].expected_output.strip()
+                            
+                            if clean_actual == clean_expected:
+                                passed_cases += 1
+                        except Exception:
+                            continue # Skip failed/timeout individual cases
                 
                 # Partial marking: Award marks proportionally to test cases passed
                 if passed_cases > 0:
@@ -330,6 +405,69 @@ def calculate_final_score(attempt):
         attempt.passed = True
 
     attempt.save()
+
+
+def _build_attempt_report(attempt):
+    questions = (ExamQuestion.objects
+                 .filter(section__exam=attempt.exam)
+                 .select_related('section')
+                 .order_by('section__order', 'id'))
+
+    flat_answers = {}
+    warnings = 0
+
+    if attempt.response_data:
+        if 'metadata' in attempt.response_data:
+            warnings = attempt.response_data['metadata'].get('warnings', 0)
+
+        for sec_id, sec_data in attempt.response_data.items():
+            if sec_id != 'metadata' and isinstance(sec_data, dict):
+                flat_answers.update(sec_data)
+
+    is_malpractice = warnings > 2
+    report = []
+
+    for q in questions:
+        user_ans = flat_answers.get(str(q.id))
+        is_correct = False
+        correct_display = q.correct_options
+        user_display = user_ans
+
+        if q.q_type == 'MCQ_SINGLE':
+            options = {'1': q.option_1, '2': q.option_2, '3': q.option_3, '4': q.option_4}
+            correct_display = options.get(str(q.correct_options), "N/A")
+            user_display = options.get(str(user_ans), "Not Attempted")
+            if str(user_ans) == str(q.correct_options):
+                is_correct = True
+        elif q.q_type == 'MCQ_MULTI':
+            options = {'1': q.option_1, '2': q.option_2, '3': q.option_3, '4': q.option_4}
+            c_opts = str(q.correct_options).split(',')
+            correct_display = ", ".join([options.get(o, o) for o in c_opts])
+            if user_ans:
+                u_opts = user_ans if isinstance(user_ans, list) else [user_ans]
+                user_display = ", ".join([options.get(str(o), str(o)) for o in u_opts])
+                if set(map(str, c_opts)) == set(map(str, u_opts)):
+                    is_correct = True
+            else:
+                user_display = "Not Attempted"
+        elif q.q_type == 'CODE':
+            is_correct = None
+            if isinstance(user_ans, dict):
+                user_display = user_ans.get('code', "No Code")
+            else:
+                user_display = "No Code"
+            correct_display = "N/A (Coding)"
+
+        report.append({
+            'question': q,
+            'user_answer': user_display,
+            'correct_answer': correct_display,
+            'is_correct': is_correct,
+            'type': q.q_type,
+            'section_name': q.section.name
+        })
+
+    return report, warnings, is_malpractice
 
 @login_required
 def check_code(request, question_id):
@@ -371,7 +509,10 @@ def check_code(request, question_id):
 
 @login_required
 def exam_history(request):
-    attempts = StudentExamAttempt.objects.filter(user=request.user, completed_at__isnull=False).order_by('-completed_at')
+    attempts = (StudentExamAttempt.objects
+                .filter(user=request.user, completed_at__isnull=False)
+                .select_related('exam', 'exam__topic')
+                .order_by('-completed_at'))
     return render(request, 'assessments/exam_history.html', {'attempts': attempts})
 
 
@@ -395,103 +536,23 @@ def attempt_detail(request, attempt_id):
         if session_attempt != attempt.id:
             return redirect("dashboard")
 
-    # ===============================
-    # FETCH QUESTIONS
-    # ===============================
-
-    questions = ExamQuestion.objects.filter(
-        section__exam=attempt.exam
-    ).order_by('section__order', 'id')
-
-    # --- 1. Parse Response Data & Extract Warnings ---
-    flat_answers = {}
-    warnings = 0
-
-    if attempt.response_data:
-        if 'metadata' in attempt.response_data:
-            warnings = attempt.response_data['metadata'].get('warnings', 0)
-
-        for sec_id, sec_data in attempt.response_data.items():
-            if sec_id != 'metadata' and isinstance(sec_data, dict):
-                flat_answers.update(sec_data)
-
-    is_malpractice = warnings > 2
-
-    # --- 2. Build Report ---
-    report = []
-
-    for q in questions:
-        user_ans = flat_answers.get(str(q.id))
-        is_correct = False
-        correct_display = q.correct_options
-        user_display = user_ans
-
-        # -----------------------
-        # MCQ SINGLE
-        # -----------------------
-        if q.q_type == 'MCQ_SINGLE':
-            options = {
-                '1': q.option_1,
-                '2': q.option_2,
-                '3': q.option_3,
-                '4': q.option_4
-            }
-
-            correct_display = options.get(str(q.correct_options), "N/A")
-            user_display = options.get(str(user_ans), "Not Attempted")
-
-            if str(user_ans) == str(q.correct_options):
-                is_correct = True
-
-        # -----------------------
-        # MCQ MULTI
-        # -----------------------
-        elif q.q_type == 'MCQ_MULTI':
-            options = {
-                '1': q.option_1,
-                '2': q.option_2,
-                '3': q.option_3,
-                '4': q.option_4
-            }
-
-            c_opts = str(q.correct_options).split(',')
-            correct_display = ", ".join([options.get(o, o) for o in c_opts])
-
-            if user_ans:
-                u_opts = user_ans if isinstance(user_ans, list) else [user_ans]
-                user_display = ", ".join([options.get(str(o), str(o)) for o in u_opts])
-
-                if set(map(str, c_opts)) == set(map(str, u_opts)):
-                    is_correct = True
-            else:
-                user_display = "Not Attempted"
-
-        # -----------------------
-        # CODING
-        # -----------------------
-        elif q.q_type == 'CODE':
-            is_correct = None
-            if isinstance(user_ans, dict):
-                user_display = user_ans.get('code', "No Code")
-            else:
-                user_display = "No Code"
-
-            correct_display = "N/A (Coding)"
-
-        report.append({
-            'question': q,
-            'user_answer': user_display,
-            'correct_answer': correct_display,
-            'is_correct': is_correct,
-            'type': q.q_type,
-            'section_name': q.section.name
+    if attempt.grading_status != 'DONE':
+        return render(request, 'assessments/attempt_detail.html', {
+            'attempt': attempt,
+            'report': [],
+            'warnings': attempt.response_data.get('metadata', {}).get('warnings', 0) if attempt.response_data else 0,
+            'is_malpractice': False,
+            'grading_pending': True,
         })
+
+    report, warnings, is_malpractice = _build_attempt_report(attempt)
 
     return render(request, 'assessments/attempt_detail.html', {
         'attempt': attempt,
         'report': report,
         'warnings': warnings,
-        'is_malpractice': is_malpractice
+        'is_malpractice': is_malpractice,
+        'grading_pending': False,
     })
 
 
@@ -521,26 +582,40 @@ def run_question_test_cases(request):
             results = []
             all_passed = True
 
-            # 2. Run Each Test Case
-            for i, tc in enumerate(test_cases):
-                # Run code using Piston
-                actual_output = execute_code_piston(code, lang, tc.input_data)
+            # 2. Run Each Test Case in Parallel
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                future_to_case = {
+                    executor.submit(execute_code_piston, code, lang, tc.input_data): tc
+                    for tc in test_cases
+                }
                 
-                # Normalize (strip whitespace)
-                clean_actual = actual_output.strip()
-                clean_expected = tc.expected_output.strip()
-                
-                passed = (clean_actual == clean_expected)
-                if not passed:
-                    all_passed = False
+                for future in future_to_case:
+                    tc = future_to_case[future]
+                    try:
+                        actual_output = future.result(timeout=15)
+                        clean_actual = actual_output.strip()
+                        clean_expected = tc.expected_output.strip()
+                        
+                        passed = (clean_actual == clean_expected)
+                        if not passed:
+                            all_passed = False
 
-                results.append({
-                    'case_num': i + 1,
-                    'input': tc.input_data,
-                    'expected': clean_expected,
-                    'actual': clean_actual,
-                    'passed': passed
-                })
+                        results.append({
+                            'case_num': len(results) + 1,
+                            'input': tc.input_data,
+                            'expected': clean_expected,
+                            'actual': clean_actual,
+                            'passed': passed
+                        })
+                    except Exception as e:
+                        all_passed = False
+                        results.append({
+                            'case_num': len(results) + 1,
+                            'input': tc.input_data,
+                            'expected': tc.expected_output.strip(),
+                            'actual': f"Error: {str(e)}",
+                            'passed': False
+                        })
 
             return JsonResponse({'status': 'success', 'results': results, 'all_passed': all_passed})
 
@@ -619,10 +694,9 @@ from django.http import HttpResponse
 def export_exam_results(request, exam_id):
     exam = Exam.objects.get(id=exam_id)
 
-    attempts = StudentExamAttempt.objects.filter(
-        exam=exam,
-        completed_at__isnull=False
-    )
+    attempts = (StudentExamAttempt.objects
+                .filter(exam=exam, completed_at__isnull=False)
+                .select_related('user'))
 
     workbook = openpyxl.Workbook()
     sheet = workbook.active
@@ -688,27 +762,7 @@ def load_section_data(request, attempt_id):
         order__gt=section.order
     ).exists()
     
-    # Build questions data
-    questions_data = []
-    for q in section.questions.all():
-        q_data = {
-            'id': q.id,
-            'type': q.q_type,
-            'text': q.text or '',
-            'image_url': q.image.url if q.image else None,
-            'marks': q.marks,
-            'starter_code': q.starter_code or '',
-        }
-        
-        if q.q_type in ['MCQ_SINGLE', 'MCQ_MULTI']:
-            q_data['options'] = {
-                '1': q.option_1,
-                '2': q.option_2,
-                '3': q.option_3,
-                '4': q.option_4,
-            }
-        
-        questions_data.append(q_data)
+    questions_data = _get_cached_section_questions(section)
     
     return JsonResponse({
         'status': 'success',
@@ -728,4 +782,26 @@ def load_section_data(request, attempt_id):
         'current_section_index': list(attempt.exam.sections.order_by('order')).index(section) + 1,
         'is_last_section': not next_section_exists,
         'questions': questions_data,
+    })
+
+
+@login_required
+def result_status(request, attempt_id):
+    attempt = get_object_or_404(StudentExamAttempt, id=attempt_id)
+
+    if attempt.user:
+        if not request.user.is_authenticated or attempt.user != request.user:
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+    else:
+        session_attempt = request.session.get("public_attempt_id")
+        if session_attempt != attempt.id:
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+
+    return JsonResponse({
+        'status': 'success',
+        'grading_status': attempt.grading_status,
+        'score': attempt.score,
+        'passed': attempt.passed,
+        'redirect_url': f'/assessments/result/{attempt.id}/' if attempt.grading_status == 'DONE' else None,
+        'error': attempt.grading_error,
     })

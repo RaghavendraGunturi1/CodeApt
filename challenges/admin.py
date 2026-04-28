@@ -123,6 +123,21 @@ class DailyQuestionAdmin(admin.ModelAdmin):
         form = ExcelUploadForm()
         return render(request, "admin/excel_upload.html", {"form": form})
 
-admin.site.register(UserStreak)
-admin.site.register(DailySubmission)
-admin.site.register(TestCase)
+@admin.register(UserStreak)
+class UserStreakAdmin(admin.ModelAdmin):
+    list_display = ('user', 'current_streak', 'max_streak', 'total_score', 'last_solved_date')
+    list_select_related = ('user',)
+    search_fields = ('user__username', 'user__email')
+
+@admin.register(DailySubmission)
+class DailySubmissionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'question', 'score', 'submitted_at')
+    list_select_related = ('user', 'question')
+    list_filter = ('question', 'submitted_at')
+    search_fields = ('user__username', 'user__email', 'question__title')
+
+@admin.register(TestCase)
+class TestCaseAdmin(admin.ModelAdmin):
+    list_display = ('question', 'input_data', 'expected_output')
+    list_select_related = ('question',)
+    list_filter = ('question',)

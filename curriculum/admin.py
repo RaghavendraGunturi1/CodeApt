@@ -1,18 +1,22 @@
 from django.contrib import admin
-from .models import Program, Subject, Topic
-# Check your top import line and add Enrollment
+from django.urls import path
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django import forms
+import pandas as pd
 from .models import (
     Program, Subject, Topic, Question, Choice, 
-    TopicProgress, Module, Enrollment, Job, JobApplication
+    TopicProgress, Module, Enrollment, Job, JobApplication,
+    QuizSubmission, Order, Coupon
 )
+from .utils import extract_video_id
+from django.contrib.admin.widgets import FilteredSelectMultiple
+from django.contrib.auth.models import User
+from core.models import Profile
 
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
     list_display = ('name',)
-
-from django.contrib.admin.widgets import FilteredSelectMultiple
-from django.contrib.auth.models import User
-from django import forms
 
 class SubjectAdminForm(forms.ModelForm):
     enrolled_users = forms.ModelMultipleChoiceField(
@@ -49,7 +53,7 @@ class SubjectAdmin(admin.ModelAdmin):
     
     # Optional: Shows the number of students in the list view
     def student_count(self, obj):
-        return obj.enrollments.count() # Assumes related_name='enrollments' in your model
+        return obj.enrollments.count() 
     student_count.short_description = "Students"
 
     def save_related(self, request, form, formsets, change):
@@ -71,16 +75,6 @@ class SubjectAdmin(admin.ModelAdmin):
             if to_add:
                 Enrollment.objects.bulk_create([Enrollment(subject=subject, user_id=uid) for uid in to_add])
 
-from django.contrib import admin
-from django.urls import path
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django import forms
-import pandas as pd
-
-from .models import Program, Subject, Topic, Question, Choice, TopicProgress, Module
-from .utils import extract_video_id
-
 # --- 1. Admin Upload Form ---
 class TopicAdminUploadForm(forms.Form):
     subject = forms.ModelChoiceField(
@@ -97,9 +91,10 @@ class TopicAdminUploadForm(forms.Form):
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
     list_display = ('name', 'subject', 'module', 'topic_type', 'order')
+    list_select_related = ('subject', 'module')
     list_filter = ('subject', 'module', 'topic_type')
     search_fields = ('name', 'content')
-    change_list_template = "admin/curriculum/topic/change_list.html"  # We will create this
+    change_list_template = "admin/curriculum/topic/change_list.html"
 
     def get_urls(self):
         urls = super().get_urls()
@@ -117,14 +112,11 @@ class TopicAdmin(admin.ModelAdmin):
                 
                 try:
                     df = pd.read_excel(file)
-                    df = df.fillna('') # Handle empty cells
-                    
-                    # Normalize headers to lowercase to avoid case-sensitivity issues
+                    df = df.fillna('')
                     df.columns = df.columns.str.lower().str.strip()
 
                     count = 0
                     for index, row in df.iterrows():
-                        # 1. Handle Module (Get or Create)
                         module_name = str(row.get('module', '')).strip()
                         topic_module = None
                         
@@ -134,12 +126,9 @@ class TopicAdmin(admin.ModelAdmin):
                                 name=module_name
                             )
 
-                        # 2. Extract Video ID from URL
                         raw_url = str(row.get('video_url', '')).strip()
                         vid_id = extract_video_id(raw_url)
 
-                        # 3. Create Topic
-                        # Only create if we have a title
                         title = str(row.get('title', '')).strip()
                         if title:
                             Topic.objects.create(
@@ -154,7 +143,7 @@ class TopicAdmin(admin.ModelAdmin):
                             count += 1
                     
                     messages.success(request, f"Successfully uploaded {count} topics to '{subject.name}'!")
-                    return redirect("..") # Return to Topic List
+                    return redirect("..")
 
                 except Exception as e:
                     messages.error(request, f"Error processing file: {e}")
@@ -169,44 +158,106 @@ class TopicAdmin(admin.ModelAdmin):
         )
         return render(request, "admin/curriculum/topic/upload_form.html", context)
 
-from django.contrib import admin
-from .models import Program, Subject, Topic, Question, Choice
-
-
 # New Quiz Admin Logic
 class ChoiceInline(admin.TabularInline):
     model = Choice
-    extra = 4  # Show 4 slots for options by default
+    extra = 4
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = ('text', 'subject')
+    list_select_related = ('subject',)
     list_filter = ('subject',)
-    inlines = [ChoiceInline] # This puts choices inside the Question page
-
-
-from .models import Program, Subject, Topic, Question, Choice, TopicProgress # Add TopicProgress
+    inlines = [ChoiceInline]
 
 @admin.register(TopicProgress)
 class TopicProgressAdmin(admin.ModelAdmin):
     list_display = ('user', 'topic', 'is_completed', 'updated_at')
+    list_select_related = ('user', 'topic', 'topic__subject')
     list_filter = ('is_completed', 'user')
-
-from .models import Job, JobApplication
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
-    list_display = ('title', 'company_name', 'is_active')
+    list_display = ('title', 'company_name', 'is_active', 'posted_at')
+    list_filter = ('is_active', 'posted_at')
+    search_fields = ('title', 'company_name')
 
-admin.site.register(JobApplication)
+@admin.register(JobApplication)
+class JobApplicationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'job', 'applied_at')
+    list_select_related = ('user', 'job')
+    list_filter = ('job', 'applied_at')
+    search_fields = ('user__username', 'job__title')
 
-# In curriculum/admin.py
+@admin.register(QuizSubmission)
+class QuizSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'subject', 'score', 'total_questions', 'percentage', 'submitted_at')
+    list_select_related = ('user', 'subject')
+    list_filter = ('subject', 'submitted_at')
+    search_fields = ('user__username', 'subject__name')
 
-from .models import Module  # Ensure Module is imported at the top
+
+class CouponGenerateForm(forms.Form):
+    prefix = forms.CharField(max_length=20, required=False, help_text='Optional prefix for coupon codes')
+    discount_type = forms.ChoiceField(choices=(('percentage','Percentage'),('fixed','Fixed Amount')))
+    discount_value = forms.DecimalField(max_digits=10, decimal_places=2)
+    count = forms.IntegerField(min_value=1, max_value=100, initial=1)
+    active = forms.BooleanField(required=False, initial=True)
+    subject = forms.ModelChoiceField(queryset=Subject.objects.all(), required=False, help_text='Optional: restrict coupon to a subject')
+
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ('code', 'discount_type', 'discount_value', 'active')
+    change_list_template = "admin/curriculum/coupon/change_list.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('generate-coupons/', self.admin_site.admin_view(self.generate_coupons_view), name='coupon_generate'),
+        ]
+        return custom_urls + urls
+
+    def generate_coupons_view(self, request):
+        if request.method == 'POST':
+            form = CouponGenerateForm(request.POST)
+            if form.is_valid():
+                prefix = form.cleaned_data['prefix'] or ''
+                dtype = form.cleaned_data['discount_type']
+                dvalue = form.cleaned_data['discount_value']
+                count = form.cleaned_data['count']
+                active = form.cleaned_data['active']
+                subject = form.cleaned_data.get('subject')
+                created = 0
+                import uuid
+                from .models import Coupon
+                for _ in range(count):
+                    code = f"{prefix}{uuid.uuid4().hex[:8].upper()}"
+                    Coupon.objects.create(code=code, discount_type=dtype, discount_value=dvalue, active=active, subject=subject)
+                    created += 1
+                messages.success(request, f"Created {created} coupons.")
+                return redirect('..')
+        else:
+            form = CouponGenerateForm()
+
+        context = dict(
+            self.admin_site.each_context(request),
+            form=form,
+            opts=self.model._meta,
+        )
+        return render(request, "admin/curriculum/coupon/generate_form.html", context)
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('order_id', 'user', 'subject', 'amount', 'discount_amount', 'coupon_code', 'status', 'created_at')
+    list_select_related = ('user', 'subject')
+    list_filter = ('status', 'created_at')
+    search_fields = ('order_id', 'transaction_id', 'user__username')
 
 @admin.register(Module)
 class ModuleAdmin(admin.ModelAdmin):
     list_display = ('name', 'subject')
+    list_select_related = ('subject',)
     list_filter = ('subject',)
     search_fields = ('name',)
 
@@ -221,12 +272,10 @@ class EnrollmentUploadForm(forms.Form):
         help_text="Columns needed: 'username', 'email', 'full_name', 'college_name', 'roll_number', 'phone_number', 'state', 'bio'"
     )
 
-from django.contrib.auth.models import User
-from core.models import Profile
-
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):
     list_display = ('user', 'subject', 'enrolled_at')
+    list_select_related = ('user', 'subject')
     list_filter = ('subject', 'enrolled_at')
     search_fields = ('user__username', 'user__email', 'subject__name')
     autocomplete_fields = ['user', 'subject']
@@ -259,9 +308,8 @@ class EnrollmentAdmin(admin.ModelAdmin):
                         email = str(row.get('email', '')).strip()
                         
                         if not username or not email:
-                            continue # Skip invalid rows
+                            continue
                             
-                        # 1. Get or Create User
                         user, created = User.objects.get_or_create(
                             username=username,
                             defaults={'email': email}
@@ -272,13 +320,11 @@ class EnrollmentAdmin(admin.ModelAdmin):
                             user.save()
                             new_users_count += 1
                             
-                        # 2. Setup/Update Profile
                         profile, _ = Profile.objects.get_or_create(user=user)
                         
                         if created:
                             profile.force_password_change = True
                             
-                        # Update fields if present in Excel
                         if 'full_name' in df.columns and str(row.get('full_name')).strip():
                             profile.full_name = str(row['full_name']).strip()
                         if 'college_name' in df.columns and str(row.get('college_name')).strip():
@@ -294,7 +340,6 @@ class EnrollmentAdmin(admin.ModelAdmin):
                             
                         profile.save()
 
-                        # 3. Create Enrollment for each subject
                         for subject in subjects:
                             enrollment, enc_created = Enrollment.objects.get_or_create(
                                 user=user,

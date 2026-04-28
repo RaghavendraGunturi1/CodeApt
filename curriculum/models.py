@@ -160,11 +160,51 @@ class Order(models.Model):
     order_id = models.CharField(max_length=100, unique=True) # Our internal ID
     transaction_id = models.CharField(max_length=100, blank=True, null=True) # PhonePe ID
     amount = models.DecimalField(max_digits=10, decimal_places=2) # Store exact amount paid
+    # Coupon fields
+    coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
+    coupon_code = models.CharField(max_length=50, blank=True, null=True)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Order {self.order_id} - {self.user.username}"
+
+
+# Coupon model for discounts
+class Coupon(models.Model):
+    DISCOUNT_TYPE = (
+        ('percentage', 'Percentage'),
+        ('fixed', 'Fixed Amount'),
+    )
+
+    code = models.CharField(max_length=50, unique=True)
+    discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE, default='percentage')
+    discount_value = models.DecimalField(max_digits=10, decimal_places=2, help_text="Percentage (0-100) or fixed amount")
+    active = models.BooleanField(default=True)
+    valid_from = models.DateTimeField(null=True, blank=True)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    usage_limit = models.PositiveIntegerField(null=True, blank=True, help_text="Total times this coupon can be used globally")
+    per_user_limit = models.PositiveIntegerField(null=True, blank=True, help_text="How many times a single user can use this coupon")
+
+    subject = models.ForeignKey(Subject, null=True, blank=True, on_delete=models.CASCADE, related_name='coupons')
+
+    def __str__(self):
+        target = f" for {self.subject.name}" if self.subject else " (global)"
+        return f"{self.code} ({self.discount_type}={self.discount_value}){target}"
+
+    def is_valid(self):
+        from django.utils import timezone
+        now = timezone.now()
+        if not self.active:
+            return False
+        if self.valid_from and now < self.valid_from:
+            return False
+        if self.valid_to and now > self.valid_to:
+            return False
+        if self.usage_limit is not None and self.orders.count() >= self.usage_limit:
+            return False
+        return True
 
 # curriculum/models.py
 from django.db import models

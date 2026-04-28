@@ -51,26 +51,27 @@ from curriculum.models import JobApplication
 from challenges.models import UserStreak
 @login_required(login_url='login')
 def dashboard(request):
-    # Fetch enrolled courses
-    user_enrollments = Enrollment.objects.filter(user=request.user).select_related('subject')
+    # ✅ OPTIMIZED: Fetch enrolled courses with total topic counts in one go
+    user_enrollments = (Enrollment.objects.filter(user=request.user)
+        .select_related('subject')
+        .annotate(total_topics_count=Count('subject__topics'))
+    )
+    
+    # ✅ OPTIMIZED: Fetch all completed topic counts for this user in one query
+    completed_counts = (TopicProgress.objects.filter(user=request.user, is_completed=True)
+        .values('topic__subject_id')
+        .annotate(count=Count('id'))
+    )
+    completed_lookup = {item['topic__subject_id']: item['count'] for item in completed_counts}
     
     course_data = []
     total_lessons_completed = 0
     
     for enrollment in user_enrollments:
         subject = enrollment.subject
+        total_topics = enrollment.total_topics_count
+        completed_topics = completed_lookup.get(subject.id, 0)
         
-        # 1. Total Topics in this course
-        total_topics = subject.topics.count()
-        
-        # 2. Completed Topics by this user in this course
-        completed_topics = TopicProgress.objects.filter(
-            user=request.user, 
-            topic__subject=subject, 
-            is_completed=True
-        ).count()
-        
-        # 3. Calculate Percentage
         if total_topics > 0:
             progress_percent = int((completed_topics / total_topics) * 100)
         else:
@@ -78,7 +79,6 @@ def dashboard(request):
             
         total_lessons_completed += completed_topics
         
-        # Append data to list
         course_data.append({
             'subject': subject,
             'progress': progress_percent,
@@ -131,6 +131,50 @@ def course_detail(request, slug):
         'is_enrolled': Enrollment.objects.filter(user=request.user, subject=subject).exists()
     }
     return render(request, 'core/course_detail.html', context)
+
+
+@login_required(login_url='login')
+def apply_coupon(request, subject_slug):
+    """AJAX endpoint to validate a coupon for a specific subject and return discounted price."""
+    from django.http import JsonResponse
+    subject = get_object_or_404(Subject, slug=subject_slug)
+
+    # Support both POST (AJAX) and GET (simple test). Prefer POST with JSON.
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body.decode('utf-8') or '{}')
+        except Exception:
+            return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+        code = data.get('coupon', '').strip()
+    else:
+        code = request.GET.get('coupon', '').strip()
+    if not code:
+        return JsonResponse({'success': False, 'message': 'No coupon provided'}, status=400)
+
+    base_price = subject.discount_price if subject.discount_price and subject.discount_price > 0 else subject.price
+    try:
+        coupon = Coupon.objects.get(code__iexact=code)
+    except Coupon.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Invalid coupon code'}, status=404)
+
+    # Ensure coupon applies to this subject (or is global)
+    if coupon.subject and coupon.subject_id != subject.id:
+        return JsonResponse({'success': False, 'message': 'Coupon does not apply to this course'}, status=400)
+
+    if not coupon.is_valid():
+        return JsonResponse({'success': False, 'message': 'Coupon is not valid or expired'}, status=400)
+
+    if coupon.discount_type == 'percentage':
+        discount_amount = (base_price * (coupon.discount_value / Decimal('100'))).quantize(Decimal('0.01'))
+    else:
+        discount_amount = Decimal(coupon.discount_value)
+
+    if discount_amount > base_price:
+        discount_amount = base_price
+
+    new_price = (base_price - discount_amount).quantize(Decimal('0.01'))
+
+    return JsonResponse({'success': True, 'new_price': str(new_price), 'discount_amount': str(discount_amount), 'coupon_code': coupon.code})
 
 from curriculum.models import Topic
 
@@ -529,6 +573,7 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from curriculum.models import Subject, Enrollment, Order
+from curriculum.models import Coupon
 
 # --- HELPER: Generate OAuth Token ---
 def get_phonepe_token():
@@ -582,17 +627,44 @@ def initiate_payment(request, subject_slug):
     subject = get_object_or_404(Subject, slug=subject_slug)
     
     # Logic: Use discount_price if available and greater than 0
-    effective_price = subject.discount_price if subject.discount_price and subject.discount_price > 0 else subject.price
+    base_price = subject.discount_price if subject.discount_price and subject.discount_price > 0 else subject.price
+    coupon_code = request.GET.get('coupon', '').strip()
+    discount_amount = Decimal('0')
+    applied_coupon = None
+
+    if coupon_code:
+        try:
+            c = Coupon.objects.get(code__iexact=coupon_code)
+            if c.is_valid():
+                applied_coupon = c
+                if c.discount_type == 'percentage':
+                    discount_amount = (base_price * (c.discount_value / Decimal('100'))).quantize(Decimal('0.01'))
+                else:
+                    discount_amount = Decimal(c.discount_value)
+                # Ensure discount doesn't exceed base price
+                if discount_amount > base_price:
+                    discount_amount = base_price
+            else:
+                messages.error(request, "Coupon is not valid or expired.")
+                return redirect('course_landing', slug=subject.slug)
+        except Coupon.DoesNotExist:
+            messages.error(request, "Invalid coupon code.")
+            return redirect('course_landing', slug=subject.slug)
+
+    effective_price = (base_price - discount_amount).quantize(Decimal('0.01'))
     
     merchant_order_id = str(uuid.uuid4())
     
-    # Save Pending Order with the correct effective price
-    Order.objects.create(
+    # Save Pending Order with the correct effective price and coupon metadata
+    order = Order.objects.create(
         user=request.user,
         subject=subject,
         order_id=merchant_order_id,
         amount=effective_price, 
-        status='PENDING'
+        status='PENDING',
+        coupon=applied_coupon,
+        coupon_code=applied_coupon.code if applied_coupon else None,
+        discount_amount=discount_amount
     )
     
     try:

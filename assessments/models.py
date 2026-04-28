@@ -193,6 +193,17 @@ class StudentExamAttempt(models.Model):
 
     score = models.FloatField(default=0.0)
     passed = models.BooleanField(default=False)
+    grading_status = models.CharField(
+        max_length=20,
+        default='DONE',
+        choices=(
+            ('DONE', 'Done'),
+            ('PROCESSING', 'Processing'),
+            ('FAILED', 'Failed'),
+        )
+    )
+    grading_error = models.TextField(blank=True, default='')
+    graded_at = models.DateTimeField(null=True, blank=True)
 
     current_section = models.ForeignKey(
         ExamSection,

@@ -25,6 +25,7 @@ class ProfileInline(admin.StackedInline):
 class UserAdmin(BaseUserAdmin):
     inlines = (ProfileInline,)
     list_display = ('username', 'email', 'get_college', 'get_roll_number', 'get_state', 'is_active')
+    list_select_related = ('profile',)
     list_filter = ('is_staff', 'is_superuser', 'profile__state') # Filter by State!
     actions = ('reset_exam_attempt_counters',)
 
@@ -233,4 +234,5 @@ admin.site.register(User, UserAdmin)
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'college_name', 'state', 'phone_number')
+    list_select_related = ('user',)
     search_fields = ('user__username', 'college_name', 'phone_number')
