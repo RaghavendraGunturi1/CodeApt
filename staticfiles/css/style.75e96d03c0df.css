@@ -313,3 +313,7 @@ html {
         padding-top: 100px !important;
     }
 }
+
+body {
+    background: red !important;
+}
