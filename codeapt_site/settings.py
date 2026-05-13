@@ -1,19 +1,28 @@
 # --- REDIS/RQ CONFIGURATION ---
 import os
+
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
 RQ_QUEUES = {
     'default': {
         'URL': REDIS_URL,
         'DEFAULT_TIMEOUT': 300,
     },
+
     'practice': {
         'URL': REDIS_URL,
         'DEFAULT_TIMEOUT': 300,
     },
+
     'assessment': {
         'URL': REDIS_URL,
         'DEFAULT_TIMEOUT': 600,
         'PRIORITY': 1,
+    },
+
+    'playground': {
+        'URL': REDIS_URL,
+        'DEFAULT_TIMEOUT': 300,
     },
 }
 import os
