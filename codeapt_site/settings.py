@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     # Third Party
     'cloudinary_storage',
     'cloudinary',
+    'django_rq',
 ]
 
 MIDDLEWARE = [
@@ -110,6 +111,37 @@ CLOUDINARY_STORAGE = {
 }
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+########################################
+# --- 6. REDIS QUEUE (RQ) CONFIGURATION ---
+########################################
+
+# Redis URL (default: local Redis, override in production)
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+# RQ Queues: assessment (high), practice (default)
+RQ_QUEUES = {
+    'default': {
+        'URL': REDIS_URL,
+        'DEFAULT_TIMEOUT': int(os.environ.get('RQ_DEFAULT_TIMEOUT', 30)),
+    },
+    'practice': {
+        'URL': REDIS_URL,
+        'DEFAULT_TIMEOUT': int(os.environ.get('RQ_PRACTICE_TIMEOUT', 30)),
+    },
+    'assessment': {
+        'URL': REDIS_URL,
+        'DEFAULT_TIMEOUT': int(os.environ.get('RQ_ASSESSMENT_TIMEOUT', 60)),
+    },
+}
+
+# RQ Worker config (env-based)
+RQ_WORKER_COUNT = int(os.environ.get('RQ_WORKER_COUNT', 2))
+RQ_RETRY_COUNT = int(os.environ.get('RQ_RETRY_COUNT', 2))
+RQ_POLL_INTERVAL = int(os.environ.get('RQ_POLL_INTERVAL', 2))  # seconds
+
+# RQ Dashboard (optional, for admin monitoring)
+RQ_SHOW_ADMIN_LINK = True
 
 # --- 6. PHONEPE CONFIGURATION ---
 PHONEPE_CLIENT_ID = os.environ.get("PHONEPE_CLIENT_ID")

@@ -7,7 +7,83 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-# ... (keep your existing models) ...
+
+# --- ASYNC EXECUTION JOB TRACKING ---
+from django.utils import timezone
+import uuid
+
+class ExecutionJob(models.Model):
+    JOB_TYPE_CHOICES = [
+        ('assessment', 'Assessment'),
+        ('practice', 'Practice'),
+    ]
+    STATUS_CHOICES = [
+        ('queued', 'Queued'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+        ('timeout', 'Timeout'),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    job_type = models.CharField(max_length=20, choices=JOB_TYPE_CHOICES)
+    related_id = models.CharField(max_length=64, blank=True, null=True, help_text="Related object (e.g. attempt id, submission id)")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued')
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    result = models.JSONField(default=dict, blank=True)
+    error = models.TextField(blank=True, default='')
+    queue_name = models.CharField(max_length=32, default='default')
+    retries = models.IntegerField(default=0)
+    last_retry_at = models.DateTimeField(null=True, blank=True)
+    log = models.TextField(blank=True, default='')
+
+
+    def mark_processing(self):
+        if self.status not in ['queued', 'processing']:
+            return
+        self.status = 'processing'
+        self.started_at = timezone.now()
+        self.save(update_fields=['status', 'started_at'])
+
+    def mark_completed(self, result):
+        if self.status not in ['processing', 'queued']:
+            return
+        self.status = 'completed'
+        self.finished_at = timezone.now()
+        self.result = result
+        self.save(update_fields=['status', 'finished_at', 'result'])
+
+    def mark_failed(self, error):
+        if self.status not in ['processing', 'queued']:
+            return
+        self.status = 'failed'
+        self.finished_at = timezone.now()
+        self.error = error
+        self.save(update_fields=['status', 'finished_at', 'error'])
+
+    def mark_cancelled(self, reason=None):
+        if self.status not in ['queued', 'processing']:
+            return
+        self.status = 'cancelled'
+        self.finished_at = timezone.now()
+        if reason:
+            self.error = reason
+        self.save(update_fields=['status', 'finished_at', 'error'])
+
+    def mark_timeout(self, reason=None):
+        if self.status not in ['processing', 'queued']:
+            return
+        self.status = 'timeout'
+        self.finished_at = timezone.now()
+        if reason:
+            self.error = reason
+        self.save(update_fields=['status', 'finished_at', 'error'])
+
+    def __str__(self):
+        return f"{self.get_job_type_display()} | {self.status} | {self.id}"
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

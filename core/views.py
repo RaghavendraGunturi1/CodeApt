@@ -231,7 +231,7 @@ import json
 import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .utils import execute_code_piston  # Import the helper
+from core.services.execution_service import execution_service, ExecutionResult
 
 @csrf_exempt
 def run_code(request):
@@ -245,8 +245,10 @@ def run_code(request):
             language = data.get('language', 'python')
             input_data = data.get('input', '')
 
-            output = execute_code_piston(code, language, input_data)
-            return JsonResponse({'output': output})
+            result = execution_service.execute_code(code, language, input_data)
+            if result.success:
+                return JsonResponse({'output': result.output.strip()})
+            return JsonResponse({'output': result.error or 'Execution failed.'}, status=400)
 
         except Exception as e:
             return JsonResponse({'output': f"Server Error: {str(e)}"}, status=500)

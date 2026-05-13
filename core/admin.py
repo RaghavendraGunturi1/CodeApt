@@ -1,7 +1,15 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Profile
+from .models import Profile, ExecutionJob
+# --- ASYNC EXECUTION JOB ADMIN ---
+@admin.register(ExecutionJob)
+class ExecutionJobAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "job_type", "status", "queue_name", "created_at", "started_at", "finished_at", "retries")
+    list_filter = ("job_type", "status", "queue_name", "created_at")
+    search_fields = ("id", "user__username", "related_id")
+    readonly_fields = ("id", "created_at", "started_at", "finished_at", "result", "error", "log")
+    ordering = ("-created_at",)
 from django.urls import path
 from django.shortcuts import render
 from django.http import HttpResponse
