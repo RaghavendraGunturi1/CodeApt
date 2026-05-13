@@ -245,8 +245,11 @@ def run_code(request):
             language = data.get('language', 'python')
             input_data = data.get('input', '')
 
-            output = execute_code_piston(code, language, input_data)
-            return JsonResponse({'output': output})
+
+            # Enqueue async job for playground, return job_id for polling
+            result = execute_code_piston(code, language, input_data, user=request.user if hasattr(request, 'user') else None, submission_ref=None, queue="playground", async_mode=True)
+            # result = {'job_id': ..., 'status': 'queued'}
+            return JsonResponse(result)
 
         except Exception as e:
             return JsonResponse({'output': f"Server Error: {str(e)}"}, status=500)

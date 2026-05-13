@@ -542,25 +542,28 @@ def check_code(request, question_id):
         question = get_object_or_404(ExamQuestion, id=question_id)
         test_cases = question.test_cases.filter(is_hidden=False)
         
-        passed_count = 0
+
         total_cases = test_cases.count()
-        
         if total_cases == 0:
             return JsonResponse({'status': 'error', 'message': 'No test cases configured.'})
 
+        import logging
+        logger = logging.getLogger('ExecutionService')
+        job_ids = []
         for case in test_cases:
-            output = run_code_piston(code, language, case.input_data)
-            # Basic string comparison (trim whitespace)
-            if output == case.expected_output.strip():
-                passed_count += 1
-        
-        all_passed = (passed_count == total_cases)
-        
+            job = enqueue_execution_job(
+                code, language, case.input_data,
+                user=request.user,
+                submission_ref=f"checkcode-{question_id}-tc{case.id}-user{request.user.id}",
+                queue='practice'
+            )
+            logger.info(f"[ENQUEUE] Assessment check_code job: job_id={job} user={request.user} question_id={question_id} testcase_id={case.id}")
+            job_ids.append({'job_id': job, 'testcase_id': case.id})
+
         return JsonResponse({
-            'status': 'success',
-            'passed_count': passed_count,
-            'total_cases': total_cases,
-            'all_passed': all_passed
+            'status': 'queued',
+            'job_ids': job_ids,
+            'total_cases': total_cases
         })
         
     return JsonResponse({'status': 'error'}, status=400)
