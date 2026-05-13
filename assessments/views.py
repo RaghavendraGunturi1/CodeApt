@@ -10,7 +10,7 @@ import json
 import requests 
 from concurrent.futures import ThreadPoolExecutor
 import threading
-from core.services.execution_service import execution_service, ExecutionResult
+from core.utils import execute_code_piston
 from .models import (
     Exam,
     ExamSection,
@@ -23,7 +23,7 @@ from .models import (
 )
 
 def run_code_piston(code, lang, stdin):
-    return execution_service.execute_code(code, lang, stdin).output.strip()
+    return execute_code_piston(code, lang, stdin)
 
 @login_required
 def start_exam(request, topic_id):
@@ -46,8 +46,6 @@ def start_exam(request, topic_id):
                .order_by('-id')
                .first())
     created = False
-            from core.execution_queue import enqueue_execution_job
-            from core.models import ExecutionJob
     if not attempt:
         attempt = StudentExamAttempt.objects.create(user=request.user, exam=exam)
         created = True
@@ -152,14 +150,6 @@ def _start_background_grading(attempt_id):
 
 
 def submit_section(request, attempt_id):
-        """
-        Handles section submission for an assessment attempt.
-        - All grading and score updates are now atomic and idempotent.
-        - Grading is performed via Redis queue worker (RQ), not background threads.
-        - Timer enforcement and concurrency safety are ensured.
-        - Leaderboard and attempt counters are updated atomically.
-        - This function is safe for concurrent and retry scenarios.
-        """
     try:
         attempt = get_object_or_404(StudentExamAttempt, id=attempt_id)
 
@@ -290,8 +280,7 @@ def submit_section(request, attempt_id):
 
             return JsonResponse({
                 'status': 'finished',
-                    from core.execution_queue import enqueue_grading_job
-                    transaction.on_commit(lambda: enqueue_grading_job(attempt.id))
+                'redirect_url': f'/assessments/result/{attempt.id}/'
             })
 
     except Exception as e:
@@ -307,19 +296,14 @@ def submit_section(request, attempt_id):
     
 from core.utils import execute_code_piston
 def calculate_final_score(attempt):
-
-    from django.db import transaction
-    with transaction.atomic():
-        # Idempotency: Only grade if not already graded
-        if hasattr(attempt, 'grading_status') and getattr(attempt, 'grading_status', None) == 'DONE':
-            return
-        total_obtained = 0
-        # 0. Safety Check: If no data, fail immediately
-        if not attempt.response_data:
-            attempt.score = 0
-            attempt.passed = False
-            attempt.save(update_fields=['score', 'passed'])
-            return
+    total_obtained = 0
+    
+    # 0. Safety Check: If no data, fail immediately
+    if not attempt.response_data:
+        attempt.score = 0
+        attempt.passed = False
+        attempt.save()
+        return
 
     # 1. Extract Answers (CRITICAL FIX: Ignore Metadata)
     flat_answers = {}
@@ -379,7 +363,11 @@ def calculate_final_score(attempt):
                 
                 # ✅ OPTIMIZED: Run test cases in parallel to avoid timeouts
                 with ThreadPoolExecutor(max_workers=5) as executor:
-                            futures = [executor.submit(lambda c, l, i: execution_service.execute_code(c, l, i).output.strip(), user_code, user_lang, tc.input_data) for tc in test_cases]
+                    # Prepare the work (calling execute_code_piston)
+                    futures = [
+                        executor.submit(execute_code_piston, user_code, user_lang, tc.input_data)
+                        for tc in test_cases
+                    ]
                     
                     # Gather results
                     for i, future in enumerate(futures):
@@ -407,14 +395,16 @@ def calculate_final_score(attempt):
 
     # 3. Save Final Score
     attempt.score = total_obtained
+    
     # Calculate Pass/Fail (e.g., 40% threshold)
     total_marks = attempt.exam.total_marks
     if total_marks > 0:
         percentage = (total_obtained / total_marks) * 100
-        attempt.passed = percentage >= 40
+        attempt.passed = percentage >= 40 
     else:
         attempt.passed = True
-    attempt.save(update_fields=['score', 'passed'])
+
+    attempt.save()
 
 
 def _build_attempt_report(attempt):
@@ -594,7 +584,10 @@ def run_question_test_cases(request):
 
             # 2. Run Each Test Case in Parallel
             with ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_case = {executor.submit(lambda c, l, i: execution_service.execute_code(c, l, i).output.strip(), code, lang, tc.input_data): tc for tc in test_cases}
+                future_to_case = {
+                    executor.submit(execute_code_piston, code, lang, tc.input_data): tc
+                    for tc in test_cases
+                }
                 
                 for future in future_to_case:
                     tc = future_to_case[future]

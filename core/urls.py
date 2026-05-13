@@ -1,6 +1,5 @@
 from django.urls import path
 from . import views
-from .job_status_api import job_status
 from curriculum import views as curriculum_views
 
 urlpatterns = [
@@ -30,5 +29,4 @@ urlpatterns = [
     path('payment/check-status/<str:order_id>/', views.check_payment_status, name='check_payment_status'),
     path('careers/', views.careers, name='careers'),  # New Page
     path('apply-job/<int:job_id>/', views.track_application, name='track_application'),
-    path('job-status/', job_status, name='core_job_status'),
 ]

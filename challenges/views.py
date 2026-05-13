@@ -10,9 +10,7 @@ import requests
 import json
 from django.db.models import Q
 from .models import DailyQuestion, UserStreak, DailySubmission, TestCase
-from core.services.execution_service import execution_service, ExecutionResult
-from core.execution_queue import enqueue_execution_job
-from core.models import ExecutionJob
+from core.utils import execute_code_piston
 from concurrent.futures import ThreadPoolExecutor
 
 @login_required(login_url='login')
@@ -67,77 +65,85 @@ def submit_code(request, question_id):
             data = json.loads(request.body)
             user_code = data.get('code')
             language = data.get('language')
+            
             question = get_object_or_404(DailyQuestion, id=question_id)
-            # Enqueue async job for code execution (practice queue)
-            job = enqueue_execution_job(
-                job_type='practice',
-                user=request.user,
-                code=user_code,
-                language=language,
-                input_data='',
-                related_id=str(question.id),
-                queue_name='practice',
-            )
-            return JsonResponse({'status': 'queued', 'job_id': str(job.id)})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
-from django.views.decorators.http import require_GET
-from django.contrib.auth.decorators import login_required
+            test_cases = question.test_cases.all()
+            
+            score = 0
+            total_cases = test_cases.count()
+            results = []
 
-@require_GET
-@login_required
-def job_status(request):
-    """API endpoint to poll job status/result by job_id (for async execution)."""
-    job_id = request.GET.get('job_id')
-    if not job_id:
-        return JsonResponse({'status': 'error', 'error': 'Missing job_id'}, status=400)
-    try:
-        job = ExecutionJob.objects.get(id=job_id)
-        # Security: Only allow owner to poll their own job
-        if job.user and job.user != request.user:
-            return JsonResponse({'status': 'error', 'error': 'Unauthorized'}, status=403)
-        # If job is not associated with a user, deny access (or allow only for public jobs if needed)
-        if not job.user:
-            return JsonResponse({'status': 'error', 'error': 'Unauthorized'}, status=403)
-        return JsonResponse({
-            'status': job.status,
-            'result': job.result if job.status == 'completed' else None,
-            'error': job.error if job.status in ['failed', 'timeout', 'cancelled'] else '',
-            'job_id': str(job.id),
-        })
-    except ExecutionJob.DoesNotExist:
-        return JsonResponse({'status': 'error', 'error': 'Job not found'}, status=404)
+            # ✅ OPTIMIZED: Run against Central Piston Utility in Parallel
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                # Map futures to their respective test case
+                future_to_test = {
+                    executor.submit(execute_code_piston, user_code, language, test.input_data): test
+                    for test in test_cases
+                }
+                
+                for future in future_to_test:
+                    test = future_to_test[future]
+                    try:
+                        api_out = future.result(timeout=15)
+                        clean_actual = api_out.strip()
+                        clean_expected = test.expected_output.strip()
+                        
+                        if clean_actual == clean_expected:
+                            score += 1
+                            results.append(True)
+                        else:
+                            results.append(False)
+                    except Exception:
+                        results.append(False)
+
+            # Update Streak (Your existing logic)
+            # Ensure update_user_progress is imported or defined in this file
+            if 'update_user_progress' in globals():
+                update_user_progress(request.user, question, score)
+            
+            return render(request, 'challenges/code_result_partial.html', {
+                'score': score, 
+                'results': results,
+                'total': total_cases
+            })
+
+        except Exception as e:
+            # Handle JSON errors or other unexpected crashes
+            return render(request, 'challenges/code_result_partial.html', {
+                'score': 0,
+                'results': [],
+                'total': 0,
+                'error': str(e)
+            })
 
 def update_user_progress(user, question, score):
-    from django.db import transaction
-    with transaction.atomic():
-        # 1. Prevent Duplicate Submission (atomic check)
-        if DailySubmission.objects.select_for_update().filter(user=user, question=question).exists():
-            return # Already submitted
+    # 1. Prevent Duplicate Submission
+    if DailySubmission.objects.filter(user=user, question=question).exists():
+        return # Already submitted
 
-        # 2. Record Submission
-        DailySubmission.objects.create(user=user, question=question, score=score)
+    # 2. Record Submission
+    DailySubmission.objects.create(user=user, question=question, score=score)
 
-        # 3. Update Streak & Total Score
-        streak_obj, _ = UserStreak.objects.select_for_update().get_or_create(user=user)
-        streak_obj.total_score += score
+    # 3. Update Streak & Total Score
+    streak_obj, _ = UserStreak.objects.get_or_create(user=user)
+    streak_obj.total_score += score
+    
+    today = timezone.now().date()
+    yesterday = today - timedelta(days=1)
 
-        today = timezone.now().date()
-        yesterday = today - timedelta(days=1)
-
-        if streak_obj.last_solved_date == yesterday:
-            # Continued Streak
-            streak_obj.current_streak += 1
-        elif streak_obj.last_solved_date != today:
-            # Broken Streak (or first time)
-            streak_obj.current_streak = 1
-
-        # Update Max Streak
-        if streak_obj.current_streak > streak_obj.max_streak:
-            streak_obj.max_streak = streak_obj.current_streak
-
-        streak_obj.last_solved_date = today
-        streak_obj.save()
+    if streak_obj.last_solved_date == yesterday:
+        # Continued Streak
+        streak_obj.current_streak += 1
+    elif streak_obj.last_solved_date != today:
+        # Broken Streak (or first time)
+        streak_obj.current_streak = 1
+    
+    # Update Max Streak
+    if streak_obj.current_streak > streak_obj.max_streak:
+        streak_obj.max_streak = streak_obj.current_streak
+    
+    streak_obj.last_solved_date = today
+    streak_obj.save()
 
 def leaderboard(request):
     # Sort by Score (Desc), then Streak (Desc)
