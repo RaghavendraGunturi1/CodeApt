@@ -2,7 +2,7 @@
 import requests
 
 # CONFIGURATION: Your DevTunnel URL pointing to the local Piston container
-PISTON_API_URL = "https://2b9xkx83-2000.inc1.devtunnels.ms/api/v2/execute"
+PISTON_API_URL = "https://exec.codeapt.in/api/v2/execute"
 
 def execute_code_piston(code, language, input_data=""):
     """
