@@ -1,3 +1,21 @@
+# --- REDIS/RQ CONFIGURATION ---
+import os
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+RQ_QUEUES = {
+    'default': {
+        'URL': REDIS_URL,
+        'DEFAULT_TIMEOUT': 300,
+    },
+    'practice': {
+        'URL': REDIS_URL,
+        'DEFAULT_TIMEOUT': 300,
+    },
+    'assessment': {
+        'URL': REDIS_URL,
+        'DEFAULT_TIMEOUT': 600,
+        'PRIORITY': 1,
+    },
+}
 import os
 import dj_database_url
 from pathlib import Path
@@ -31,6 +49,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 # --- 2. APPLICATION DEFINITION ---
 INSTALLED_APPS = [
+    'django_rq',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

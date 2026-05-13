@@ -1,3 +1,7 @@
+import django_rq
+from core.models import ExecutionJob
+from core.services.rq_jobs import execute_submission_job
+import uuid
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -10,7 +14,7 @@ import json
 import requests 
 from concurrent.futures import ThreadPoolExecutor
 import threading
-from core.utils import execute_code_piston
+from core.services.execution_service import execution_service, ExecutionResult
 from .models import (
     Exam,
     ExamSection,
@@ -22,8 +26,77 @@ from .models import (
     PublicExamLink
 )
 
-def run_code_piston(code, lang, stdin):
-    return execute_code_piston(code, lang, stdin)
+
+# Centralized code execution for assessments
+
+# Hybrid execution: playground sync, submissions async
+
+# Centralized/hardened async job enqueue logic
+def enqueue_execution_job(code, lang, stdin, user=None, submission_ref=None, queue='practice'):
+    import uuid
+    job_id = str(uuid.uuid4())
+    # Idempotency: prevent duplicate jobs for same submission_ref if needed
+    if submission_ref:
+        existing = ExecutionJob.objects.filter(submission_ref=submission_ref, status__in=['queued', 'processing', 'completed']).first()
+        if existing:
+            return existing.job_id
+    job = ExecutionJob.objects.create(
+        job_id=job_id,
+        user=user if user and user.is_authenticated else None,
+        submission_ref=submission_ref,
+        queue=queue,
+        status='queued',
+    )
+    q = django_rq.get_queue(queue)
+    q.enqueue(execute_submission_job, job_id, code, lang, stdin, user_id=(user.id if user else None), submission_ref=submission_ref, queue=queue)
+    return job_id
+
+def run_code_piston(code, lang, stdin, mode='sync', user=None, submission_ref=None, queue='practice'):
+    if mode == 'sync':
+        result = execution_service.execute_code(code, lang, stdin)
+        if result.success:
+            return result.stdout.strip()
+        elif result.status == 'timeout':
+            return "Error: Execution timed out."
+        elif result.status == 'compile_error':
+            return f"Error: Compilation failed. {result.compile_output.strip()}"
+        elif result.status == 'memory_limit':
+            return "Error: Memory limit exceeded."
+        elif result.status == 'runtime_error':
+            return f"Error: Runtime error. {result.stderr.strip()}"
+        elif result.status == 'internal_error':
+            return f"Error: Internal error. {result.internal_error or result.reason}"
+        else:
+            return f"Error: Unknown execution error."
+    else:
+        return enqueue_execution_job(code, lang, stdin, user=user, submission_ref=submission_ref, queue=queue)
+from django.views.decorators.csrf import csrf_exempt
+# --- API: Poll async execution job status/result ---
+
+from django.contrib.auth.decorators import login_required
+
+# Hardened polling endpoint: authentication, job ownership, safe errors
+@csrf_exempt
+@login_required
+def poll_execution_job(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            job_id = data.get('job_id')
+            job = ExecutionJob.objects.get(job_id=job_id)
+            # Only allow polling for own jobs
+            if job.user and job.user != request.user:
+                return JsonResponse({'error': 'Forbidden'}, status=403)
+            return JsonResponse({
+                'status': job.status,
+                'result': job.result,
+                'error': job.error,
+            })
+        except ExecutionJob.DoesNotExist:
+            return JsonResponse({'status': 'not_found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @login_required
 def start_exam(request, topic_id):
@@ -126,24 +199,8 @@ def _get_cached_section_questions(section):
     return payload
 
 
-def _start_background_grading(attempt_id):
-    def _worker():
-        try:
-            attempt = StudentExamAttempt.objects.select_related('exam', 'exam__topic').get(id=attempt_id)
-            calculate_final_score(attempt)
-            StudentExamAttempt.objects.filter(id=attempt_id).update(
-                grading_status='DONE',
-                grading_error='',
-                graded_at=timezone.now(),
-            )
-        except Exception as exc:
-            StudentExamAttempt.objects.filter(id=attempt_id).update(
-                grading_status='FAILED',
-                grading_error=str(exc),
-                graded_at=timezone.now(),
-            )
 
-    threading.Thread(target=_worker, daemon=True).start()
+# All grading is now handled by Redis queue workers. No background threads.
 
 
 # In assessments/views.py
@@ -267,7 +324,9 @@ def submit_section(request, attempt_id):
             attempt.grading_error = ''
             attempt.save()
 
-            transaction.on_commit(lambda: _start_background_grading(attempt.id))
+            # Queue grading job for this attempt (idempotent)
+            from core.services.rq_jobs import enqueue_grading_job
+            transaction.on_commit(lambda: enqueue_grading_job(attempt.id))
 
             # Increment restriction counter only when a logged-in user's attempt is completed.
             if attempt.user:
@@ -294,7 +353,7 @@ def submit_section(request, attempt_id):
         }, status=500)
 
     
-from core.utils import execute_code_piston
+# (No longer needed, all execution is centralized)
 def calculate_final_score(attempt):
     total_obtained = 0
     
@@ -365,7 +424,7 @@ def calculate_final_score(attempt):
                 with ThreadPoolExecutor(max_workers=5) as executor:
                     # Prepare the work (calling execute_code_piston)
                     futures = [
-                        executor.submit(execute_code_piston, user_code, user_lang, tc.input_data)
+                        executor.submit(run_code_piston, user_code, user_lang, tc.input_data)
                         for tc in test_cases
                     ]
                     
@@ -561,7 +620,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 import json
 from .models import ExamQuestion, ExamTestCase
-from core.utils import execute_code_piston  # Ensure this is imported
+# (No longer needed, all execution is centralized)
 
 @csrf_exempt
 def run_question_test_cases(request):
@@ -585,7 +644,7 @@ def run_question_test_cases(request):
             # 2. Run Each Test Case in Parallel
             with ThreadPoolExecutor(max_workers=5) as executor:
                 future_to_case = {
-                    executor.submit(execute_code_piston, code, lang, tc.input_data): tc
+                    executor.submit(run_code_piston, code, lang, tc.input_data): tc
                     for tc in test_cases
                 }
                 

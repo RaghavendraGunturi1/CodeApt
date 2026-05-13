@@ -1,3 +1,33 @@
+# --- ASYNC EXECUTION JOB TRACKING ---
+from django.conf import settings
+from django.db import models
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+class ExecutionJob(models.Model):
+    QUEUE_CHOICES = [
+        ("assessment", "Assessment"),
+        ("practice", "Practice"),
+    ]
+    STATUS_CHOICES = [
+        ("queued", "Queued"),
+        ("processing", "Processing"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+    ]
+    job_id = models.CharField(max_length=64, unique=True)
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    submission_ref = models.CharField(max_length=128, blank=True, null=True, help_text="Submission or attempt reference")
+    queue = models.CharField(max_length=32, choices=QUEUE_CHOICES)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default="queued")
+    result = models.JSONField(blank=True, null=True)
+    error = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(blank=True, null=True)
+    finished_at = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.job_id} ({self.queue}) - {self.status}"
 from django.db import models
 
 # Create your models here.

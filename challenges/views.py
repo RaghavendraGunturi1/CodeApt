@@ -1,3 +1,7 @@
+import django_rq
+from core.models import ExecutionJob
+from core.services.rq_jobs import execute_submission_job
+import uuid
 from django.shortcuts import render
 
 # Create your views here.
@@ -10,7 +14,7 @@ import requests
 import json
 from django.db.models import Q
 from .models import DailyQuestion, UserStreak, DailySubmission, TestCase
-from core.utils import execute_code_piston
+from core.services.execution_service import execution_service, ExecutionResult
 from concurrent.futures import ThreadPoolExecutor
 
 @login_required(login_url='login')
@@ -74,27 +78,13 @@ def submit_code(request, question_id):
             results = []
 
             # ✅ OPTIMIZED: Run against Central Piston Utility in Parallel
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                # Map futures to their respective test case
-                future_to_test = {
-                    executor.submit(execute_code_piston, user_code, language, test.input_data): test
-                    for test in test_cases
-                }
-                
-                for future in future_to_test:
-                    test = future_to_test[future]
-                    try:
-                        api_out = future.result(timeout=15)
-                        clean_actual = api_out.strip()
-                        clean_expected = test.expected_output.strip()
-                        
-                        if clean_actual == clean_expected:
-                            score += 1
-                            results.append(True)
-                        else:
-                            results.append(False)
-                    except Exception:
-                        results.append(False)
+            # Async: enqueue jobs for each test case, return job_ids for polling
+            from assessments.views import enqueue_execution_job
+            job_ids = []
+            for test in test_cases:
+                job_id = enqueue_execution_job(user_code, language, test.input_data, user=request.user, submission_ref=f"challenge-{question_id}-tc{test.id}", queue='practice')
+                job_ids.append(job_id)
+            return JsonResponse({'job_ids': job_ids, 'total': total_cases})
 
             # Update Streak (Your existing logic)
             # Ensure update_user_progress is imported or defined in this file
