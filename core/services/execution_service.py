@@ -59,8 +59,8 @@ class ExecutionService:
         self.piston_url = os.environ.get('PISTON_URL', 'https://exec.codeapt.in/api/v2/execute')
         self.run_timeout = float(os.environ.get('EXEC_RUN_TIMEOUT', 8.0))
         self.compile_timeout = float(os.environ.get('EXEC_COMPILE_TIMEOUT', 4.0))
-        self.run_memory_limit = int(os.environ.get('EXEC_RUN_MEMORY_LIMIT', 128 * 1024 * 1024))  # 128MB
-        self.compile_memory_limit = int(os.environ.get('EXEC_COMPILE_MEMORY_LIMIT', 128 * 1024 * 1024))
+        self.run_memory_limit = int(os.environ.get('EXEC_RUN_MEMORY_LIMIT', 256 * 1024 * 1024))
+        self.compile_memory_limit = int(os.environ.get('EXEC_COMPILE_MEMORY_LIMIT', 256 * 1024 * 1024))
         self.max_retries = int(os.environ.get('EXEC_MAX_RETRIES', 2))
         self.session = self._init_session()
 
@@ -131,7 +131,7 @@ class ExecutionService:
         if compile_ and compile_.get('code', 0) != 0:
             status = 'compile_error'
             reason = 'Compilation failed'
-        elif run.get('signal') == 'SIGKILL' or run.get('stderr', '').lower().find('killed') != -1:
+        elif run.get('signal') == 'SIGKILL':
             status = 'memory_limit'
             reason = 'Memory limit exceeded'
         elif exit_code and exit_code != 0:
