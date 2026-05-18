@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Essay Results</h2>
+<div class="score-summary">
+  <h3>Final Score: <span style="color: #1976d2;">{{ attempt.final_score }}</span></h3>
+  <div class="category-scores" style="display: flex; flex-wrap: wrap; gap: 1em;">
+    <div style="border:1px solid #ccc; border-radius:8px; padding:1em; min-width:120px; flex:1;">
+      <strong>Grammar</strong><br>
+      <span style="font-size:1.2em;">{{ attempt.grammar_score }}</span>
+    </div>
+    <div style="border:1px solid #ccc; border-radius:8px; padding:1em; min-width:120px; flex:1;">
+      <strong>Spelling</strong><br>
+      <span style="font-size:1.2em;">{{ attempt.spelling_score }}</span>
+    </div>
+    <div style="border:1px solid #ccc; border-radius:8px; padding:1em; min-width:120px; flex:1;">
+      <strong>Punctuation</strong><br>
+      <span style="font-size:1.2em;">{{ attempt.punctuation_score }}</span>
+    </div>
+    <div style="border:1px solid #ccc; border-radius:8px; padding:1em; min-width:120px; flex:1;">
+      <strong>Readability</strong><br>
+      <span style="font-size:1.2em;">{{ attempt.readability_score }}</span>
+    </div>
+    <div style="border:1px solid #ccc; border-radius:8px; padding:1em; min-width:120px; flex:1;">
+      <strong>Vocabulary</strong><br>
+      <span style="font-size:1.2em;">{{ attempt.vocabulary_score }}</span>
+    </div>
+    <div style="border:1px solid #ccc; border-radius:8px; padding:1em; min-width:120px; flex:1;">
+      <strong>Structure</strong><br>
+      <span style="font-size:1.2em;">{{ attempt.structure_score }}</span>
+    </div>
+    <div style="border:1px solid #ccc; border-radius:8px; padding:1em; min-width:120px; flex:1;">
+      <strong>Relevance</strong><br>
+      <span style="font-size:1.2em;">{{ attempt.relevance_score }}</span>
+    </div>
+  </div>
+
+  <div style="margin-top:2em;">
+    <h4>Strengths</h4>
+    {% if strengths %}
+      <ul>
+        {% for s in strengths %}<li>{{ s }}</li>{% endfor %}
+      </ul>
+    {% else %}
+      <p>No major strengths detected.</p>
+    {% endif %}
+    <h4>Weaknesses</h4>
+    {% if weaknesses %}
+      <ul>
+        {% for w in weaknesses %}<li>{{ w }}</li>{% endfor %}
+      </ul>
+    {% else %}
+      <p>No major weaknesses detected.</p>
+    {% endif %}
+  </div>
+
+  {% if attempt.feedback_summary %}
+    <div style="margin-top:2em;">
+      <h4>AI Feedback</h4>
+      <div class="alert alert-info">{{ attempt.feedback_summary.feedback }}</div>
+      {% if attempt.feedback_summary.strengths %}
+        <div><strong>Strengths:</strong> {{ attempt.feedback_summary.strengths }}</div>
+      {% endif %}
+      {% if attempt.feedback_summary.weaknesses %}
+        <div><strong>Weaknesses:</strong> {{ attempt.feedback_summary.weaknesses }}</div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if request.GET.violation or request.GET.violation == '1' %}
+    <div class="alert alert-danger fw-bold">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      Your attempt was cancelled due to a proctoring violation (tab/window switch limit exceeded). Score: 0
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-5">
+  <div class="card shadow-lg border-0 p-5 mx-auto text-center" style="max-width: 600px;">
+    <i class="bi bi-shield-exclamation text-danger" style="font-size: 4rem;"></i>
+    <h2 class="fw-bold mt-3 text-danger">Attempt Cancelled</h2>
+    <p class="lead mt-3 mb-4">Your essay attempt was cancelled due to a proctoring violation (tab/window switch or anti-cheat rule breach).</p>
+    <div class="display-4 fw-bold mb-2">Score: <span class="text-danger">0</span></div>
+    <div class="alert alert-danger mt-4 fw-bold">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      No marks awarded. Please follow all proctoring rules in future attempts.
+    </div>
+    <a href="/" class="btn btn-primary mt-3">Return to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

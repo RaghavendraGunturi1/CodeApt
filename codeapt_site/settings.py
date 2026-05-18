@@ -36,7 +36,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-default-key-change-this')
 
 # Set to False on App Runner to prevent leaking sensitive info
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
+DEBUG = True
 
 ALLOWED_HOSTS = [
     '*',
@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     # Third Party
     'cloudinary_storage',
     'cloudinary',
+    'essays',
 ]
 
 MIDDLEWARE = [
@@ -156,3 +157,11 @@ SECURE_SSL_REDIRECT = False
 
 # Add this to help Django understand it's behind the AWS proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# --- ESSAY SYSTEM SETTINGS ---
+ESSAY_SYSTEM = {
+    "AUTOSAVE_INTERVAL": 30000,  # ms
+    "TIMER_VALIDATION": True,
+    "ENABLE_AI_SCORING": False,
+    "MIN_AUTOSAVE_WORDS": 10,
+}

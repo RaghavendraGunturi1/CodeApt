@@ -190,20 +190,34 @@ def topic_detail(request, topic_id):
     if request.user.is_authenticated:
         is_completed = TopicProgress.objects.filter(user=request.user, topic=topic, is_completed=True).exists()
     
-    # ✅ Add exam attempt info
+    # ✅ Add exam/essay attempt info
     attempt_count = 0
     max_attempts = 2
     attempts_blocked = False
-    
+
     if topic.topic_type == 'exam':
         try:
             exam = topic.exam
-            max_attempts = exam.max_attempts
+            max_attempts = getattr(exam, 'max_attempts', 2)
             attempt_count = exam.get_user_attempt_count(request.user)
             attempts_blocked = attempt_count >= max_attempts
-        except:
+        except Exception:
             pass
-    
+    elif topic.topic_type == 'essay':
+        essay_topic = getattr(topic, 'essay_topic', None)
+        if essay_topic:
+            from essays.models import EssayAttempt
+            # Use max_attempts from EssayTopic if present, else default 3
+            max_attempts = getattr(essay_topic, 'max_attempts', 3)
+            # Count all attempts by this user for this essay topic
+            if request.user.is_authenticated:
+                attempt_count = EssayAttempt.objects.filter(user=request.user, essay_topic=essay_topic).count()
+            attempts_blocked = attempt_count >= max_attempts
+        else:
+            max_attempts = 0
+            attempt_count = 0
+            attempts_blocked = True
+
     context = {
         'topic': topic,
         'subject': subject,

@@ -58,8 +58,10 @@ class Topic(models.Model):
         ('video', 'Video Lesson'),
         ('quiz', 'Quiz'),
         ('exam', 'Mock Exam'),
+        ('essay', 'Essay'),
     )
     topic_type = models.CharField(max_length=10, choices=TOPIC_TYPES, default='text')
+    essay_topic = models.ForeignKey('essays.EssayTopic', null=True, blank=True, on_delete=models.SET_NULL, help_text="Select the essay to use for this topic (only for Essay topic type)")
     
     
     # Content for Text Lessons

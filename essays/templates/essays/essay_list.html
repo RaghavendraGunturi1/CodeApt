@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% load dict_extras %}
+{% block content %}
+<h2>Essay Topics</h2>
+<ul>
+  {% for topic in topics %}
+    <li>
+      <strong>{{ topic.title }}</strong> ({{ topic.get_difficulty_level_display }})
+      {% with latest_attempt=latest_attempts_map|get_item:topic.id %}
+        {% if latest_attempt %}
+          <a href="{% url 'essays:essay_editor' latest_attempt.id %}">Continue</a>
+        {% else %}
+          <form method="post" action="{% url 'essays:essay_start' %}" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="topic_id" value="{{ topic.id }}">
+            <button type="submit">Start</button>
+          </form>
+        {% endif %}
+      {% endwith %}
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

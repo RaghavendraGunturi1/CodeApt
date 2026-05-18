@@ -38,36 +38,44 @@
                         <h1 class="fw-bold brand-black">{{ topic.name }}</h1>
                     </div>
 
-                    {% if topic.topic_type == 'exam' %}
+
+                    {% if topic.topic_type == 'exam' or topic.topic_type == 'essay' %}
 
                     <div class="text-center py-5 bg-light rounded border {% if attempts_blocked %}border-secondary border-opacity-50{% else %}border-danger border-opacity-25{% endif %}">
                         <div class="mb-4">
                             <i class="bi bi-stopwatch {% if attempts_blocked %}text-secondary{% else %}text-danger{% endif %}" style="font-size: 4rem;"></i>
                         </div>
-                        
+
                         {% if attempts_blocked %}
-                            <h3 class="fw-bold text-secondary">Exam Attempts Exceeded</h3>
+                            <h3 class="fw-bold text-secondary">{{ topic.topic_type|title }} Attempts Exceeded</h3>
                             <p class="text-muted mb-4">
-                                You have reached the maximum limit of <strong>{{ max_attempts }} attempts</strong> for this exam.<br>
-                                Please contact support if you need to retake this exam.
+                                You have reached the maximum limit of <strong>{{ max_attempts }} attempts</strong> for this {{ topic.topic_type }}.<br>
+                                Please contact support if you need to retake this {{ topic.topic_type }}.
                             </p>
                             <div class="alert alert-warning d-inline-block" role="alert">
                                 <strong>Attempts Used: {{ attempt_count }}/{{ max_attempts }}</strong>
                             </div>
                         {% else %}
-                            <h3 class="fw-bold">Mock Exam Ready</h3>
+                            <h3 class="fw-bold">{{ topic.topic_type|title }} Ready</h3>
                             <p class="text-muted mb-4">
-                                This exam runs in full-screen mode.<br>
-                                Strict proctoring rules apply (No tab switching, No copy/paste).
+                                This {{ topic.topic_type }} runs in full-screen mode.<br>
+                                <span class="fw-bold text-danger">Strict proctoring rules apply (No tab switching, No copy/cut/paste, full-screen required).</span>
                             </p>
                             <div class="alert alert-info d-inline-block mb-4" role="alert">
                                 <strong>Attempts: {{ attempt_count }}/{{ max_attempts }}</strong>
                             </div>
 
-                            <a href="{% url 'start_exam' topic.id %}"
-                                class="btn btn-danger btn-lg px-5 py-3 fw-bold shadow-sm">
-                                <i class="bi bi-play-circle-fill me-2"></i> Start Mock Exam
-                            </a>
+                            {% if topic.topic_type == 'exam' %}
+                                <a href="{% url 'start_exam' topic.id %}"
+                                    class="btn btn-danger btn-lg px-5 py-3 fw-bold shadow-sm">
+                                    <i class="bi bi-play-circle-fill me-2"></i> Start Mock Exam
+                                </a>
+                            {% elif topic.topic_type == 'essay' %}
+                                <a href="{% url 'essays:start_from_topic' topic.id %}"
+                                    class="btn btn-warning btn-lg px-5 py-3 fw-bold shadow-sm">
+                                    <i class="bi bi-pencil-square me-2"></i> Start Proctored Essay
+                                </a>
+                            {% endif %}
                         {% endif %}
 
                         <div class="mt-4">

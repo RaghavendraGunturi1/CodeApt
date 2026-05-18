@@ -88,13 +88,34 @@ class TopicAdminUploadForm(forms.Form):
     )
 
 # --- 2. Topic Admin with Upload Feature ---
+
+# Custom form to show essay_topic only for essay type
+from django import forms
+from essays.models import EssayTopic
+
+class TopicAdminForm(forms.ModelForm):
+    class Meta:
+        model = Topic
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Hide essay_topic unless topic_type is essay
+        if self.instance and self.instance.topic_type != 'essay':
+            self.fields['essay_topic'].widget = forms.HiddenInput()
+
 @admin.register(Topic)
 class TopicAdmin(admin.ModelAdmin):
+    form = TopicAdminForm
     list_display = ('name', 'subject', 'module', 'topic_type', 'order')
     list_select_related = ('subject', 'module')
     list_filter = ('subject', 'module', 'topic_type')
     search_fields = ('name', 'content')
     change_list_template = "admin/curriculum/topic/change_list.html"
+    fields = ('subject', 'module', 'name', 'topic_type', 'essay_topic', 'order', 'content', 'video_id', 'duration')
+
+    class Media:
+        js = ('admin/js/jquery.init.js', 'admin/js/topic_admin.js',)
 
     def get_urls(self):
         urls = super().get_urls()

@@ -1,0 +1,385 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+<div id="fullscreen-overlay"
+    class="position-fixed top-0 start-0 w-100 h-100 bg-dark d-flex flex-column justify-content-center align-items-center"
+    style="z-index: 10000; display: none;">
+    <div class="text-center text-white">
+        <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 5rem;"></i>
+        <h2 class="fw-bold mt-4">Essay Paused</h2>
+        <p class="lead">Full-screen mode is required. No tab switching, copy, or paste allowed.</p>
+        <button onclick="returnToFullscreen()" class="btn btn-primary btn-lg fw-bold mt-3">Resume Essay</button>
+    </div>
+</div>
+
+<div id="start-modal" class="container mt-5 text-center">
+    <div class="card p-5 shadow border-0" style="max-width: 600px; margin: auto;">
+        <h1 class="fw-bold">{{ topic.title }}</h1>
+        <p class="text-muted">Time Limit: {{ topic.time_limit_minutes }} Minutes</p>
+        <hr>
+        <ul class="text-start mb-4">
+            <li><strong>Full Screen:</strong> Mandatory. Exiting will pause the essay.</li>
+            <li><strong>Proctoring:</strong> No tab switching, copy, or paste allowed.</li>
+        </ul>
+        <button onclick="enterEssay()" class="btn btn-success btn-lg fw-bold w-100">Start Essay Now</button>
+    </div>
+</div>
+
+<div id="essay-container" class="bg-light min-vh-100 position-fixed top-0 start-0 w-100 h-100" style="z-index: 9999; overflow-y: hidden; display: none;">
+  <div class="d-flex flex-column align-items-center justify-content-center h-100">
+    <div class="content-card p-5 shadow-lg border-0" style="max-width: 700px; width: 100%;">
+      <div class="mb-4">
+        <h2 class="fw-bold brand-black mb-1">{{ topic.title }}</h2>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+          <span class="badge bg-info text-dark">{{ topic.get_difficulty_level_display }}</span>
+          <span class="badge bg-secondary text-dark">Min: {{ topic.min_words }} words</span>
+          <span class="badge bg-secondary text-dark">Max: {{ topic.max_words }} words</span>
+          <span class="badge bg-primary text-white"><i class="bi bi-clock me-1"></i> {{ topic.time_limit_minutes }} min</span>
+          <span class="badge bg-success bg-opacity-10 text-success border border-success">{% if topic.is_active %}Active{% else %}Inactive{% endif %}</span>
+        </div>
+        <div class="mb-2">
+          <div class="fw-medium text-dark mb-1">Description</div>
+          <div class="text-muted small" style="white-space: pre-line;">{{ topic.description }}</div>
+        </div>
+        <div class="mb-2">
+          <div class="fw-medium text-dark mb-1">Instructions</div>
+          <div class="text-muted small" style="white-space: pre-line;">{{ topic.instructions }}</div>
+        </div>
+        <div class="mb-2">
+          <div class="fw-medium text-dark mb-1">Attempt: {{ attempt.attempt_number }}{% if max_attempts %} / {{ max_attempts }}{% endif %}</div>
+        </div>
+        <div class="text-end mt-2">
+          <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">
+            <i class="bi bi-clock me-1"></i> Time Remaining: <span id="timer-count">{{ time_remaining }}</span>
+          </span>
+        </div>
+      </div>
+      <div class="alert alert-danger fw-bold mb-4">
+        <i class="bi bi-shield-lock me-2"></i>
+        Strict proctoring: <span class="text-danger">No copy/cut/paste, no tab switching, full-screen required.</span>
+      </div>
+      <form id="essay-form" method="post" action="{% url 'essays:essay_submit' attempt.id %}">
+        {% csrf_token %}
+        <div class="mb-4">
+          <label for="essay-content" class="form-label fw-bold">Your Essay</label>
+          <textarea id="essay-content" name="content" rows="15" class="form-control rounded-4 shadow-sm p-3" style="font-size:1.1em; font-family: 'Inter', 'Poppins', Arial, sans-serif; min-height:320px; resize:vertical; background:#f8fafc; border:1.5px solid #d1d5db;" placeholder="Start writing your essay here..." {% if not attempt.can_edit %}readonly{% endif %}>{{ attempt.content }}</textarea>
+        </div>
+        <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+          <div class="d-flex gap-3">
+            <span class="badge bg-secondary bg-opacity-10 text-dark px-3 py-2 rounded-pill">Words: <span id="word-count">{{ attempt.word_count }}</span></span>
+            <span class="badge bg-secondary bg-opacity-10 text-dark px-3 py-2 rounded-pill">Characters: <span id="char-count">{{ attempt.character_count }}</span></span>
+            <span class="badge bg-secondary bg-opacity-10 text-dark px-3 py-2 rounded-pill">Paragraphs: <span id="para-count">{{ attempt.paragraph_count }}</span></span>
+          </div>
+          <div id="autosave-status" class="text-success small ms-2"></div>
+        </div>
+        <div class="d-flex justify-content-end">
+          <button type="submit" id="submit-btn" class="btn btn-primary px-5 fw-bold shadow-sm" {% if not attempt.can_edit %}disabled{% endif %}>Submit Essay</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<style>
+  #essay-content:focus {
+    border-color: #1976d2;
+    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.15);
+    background: #f0f6ff;
+  }
+  .content-card {
+    background: #fff;
+    border-radius: 1.25rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+  }
+  .alert-danger {
+    border-radius: 0.75rem;
+    font-size: 1.1em;
+  }
+  .badge {
+    font-size: 1em;
+    border-radius: 0.7em;
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// --- STRICT PROCTORING & ANTI-CHEAT (REBUILT) ---
+let isTransitioning = false;
+function isFullscreen() {
+  return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+}
+function hideNavBar() {
+  var nav = document.querySelector('nav.navbar, header, .navbar');
+  if (nav) nav.style.display = 'none';
+}
+function showNavBar() {
+  var nav = document.querySelector('nav.navbar, header, .navbar');
+  if (nav) nav.style.display = '';
+}
+function showOverlay() {
+  document.getElementById('fullscreen-overlay').style.display = 'flex';
+  document.getElementById('essay-container').style.display = 'none';
+  document.getElementById('essay-container').style.filter = 'blur(10px)';
+  showNavBar();
+  window.__essayLogicInitialized = false; // Reset essay logic so it re-initializes on resume
+}
+function showEssay() {
+  document.getElementById('fullscreen-overlay').style.display = 'none';
+  document.getElementById('essay-container').style.display = 'block';
+  document.getElementById('essay-container').style.filter = 'none';
+  hideNavBar();
+  initEssayLogic();
+}
+function enterEssay() {
+  isTransitioning = true;
+  setWarningCount(0); // Reset warning counter on essay start
+  const essayElem = document.getElementById('essay-container');
+  const req = essayElem.requestFullscreen || essayElem.webkitRequestFullscreen || essayElem.msRequestFullscreen;
+  console.log('[Essay] Attempting to enter fullscreen on essay-container');
+  if (req) {
+    req.call(essayElem).then(() => {
+      console.log('[Essay] Fullscreen entered');
+      document.getElementById('start-modal').style.display = 'none';
+      showEssay();
+      setTimeout(() => { isTransitioning = false; }, 1000);
+      enforceProctoring();
+    }).catch((e) => {
+      console.log('[Essay] Fullscreen failed', e);
+      alert("Full screen is required for this essay. Please allow it.");
+      document.getElementById('start-modal').style.display = 'none';
+      showEssay(); // Fallback: show essay anyway
+      isTransitioning = false;
+      enforceProctoring();
+    });
+  } else {
+    console.log('[Essay] Fullscreen API not available');
+    document.getElementById('start-modal').style.display = 'none';
+    showEssay();
+    isTransitioning = false;
+    enforceProctoring();
+  }
+}
+function returnToFullscreen() {
+  isTransitioning = true;
+  const essayElem = document.getElementById('essay-container');
+  const req = essayElem.requestFullscreen || essayElem.webkitRequestFullscreen || essayElem.msRequestFullscreen;
+  console.log('[Essay] Attempting to re-enter fullscreen on essay-container');
+  if (req) {
+    req.call(essayElem).then(() => {
+      console.log('[Essay] Fullscreen re-entered');
+      document.getElementById('start-modal').style.display = 'none';
+      showEssay();
+      setTimeout(() => { isTransitioning = false; }, 500);
+      enforceProctoring();
+    }).catch((e) => {
+      console.log('[Essay] Fullscreen re-enter failed', e);
+      document.getElementById('start-modal').style.display = 'none';
+      showEssay(); // Fallback
+      isTransitioning = false;
+      enforceProctoring();
+    });
+  } else {
+    console.log('[Essay] Fullscreen API not available for resume');
+    document.getElementById('start-modal').style.display = 'none';
+    showEssay();
+    isTransitioning = false;
+    enforceProctoring();
+  }
+}
+function enforceProctoring() {
+  if (isTransitioning) return;
+  if (isFullscreen() && document.visibilityState === 'visible' && document.hasFocus()) {
+    showEssay();
+  } else {
+    showOverlay();
+  }
+}
+document.addEventListener('fullscreenchange', enforceProctoring);
+window.addEventListener('blur', enforceProctoring);
+window.addEventListener('focus', enforceProctoring);
+
+// --- Tab/window switch warning logic (robust) ---
+const MAX_WARNINGS = 2;
+function getWarningCount() {
+  return parseInt(sessionStorage.getItem('essay_warning_count') || '0');
+}
+function setWarningCount(val) {
+  sessionStorage.setItem('essay_warning_count', val);
+}
+function showTabWarning() {
+  let warningDiv = document.getElementById('tab-warning');
+  if (!warningDiv) {
+    warningDiv = document.createElement('div');
+    warningDiv.id = 'tab-warning';
+    warningDiv.className = 'alert alert-warning fw-bold text-center';
+    warningDiv.style.position = 'fixed';
+    warningDiv.style.top = '0';
+    warningDiv.style.left = '0';
+    warningDiv.style.width = '100%';
+    warningDiv.style.zIndex = '20000';
+    document.body.appendChild(warningDiv);
+  }
+  warningDiv.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i> WARNING ${getWarningCount()}/${MAX_WARNINGS}: Tab or window switching is prohibited!`;
+  setTimeout(() => { if (warningDiv) warningDiv.remove(); }, 3000);
+}
+function handleProctoringBreach() {
+  // Always auto-exit if warnings exceeded
+  if (getWarningCount() > MAX_WARNINGS) {
+    if (typeof submitBtn !== 'undefined') submitBtn.disabled = true;
+    if (typeof autosaveStatus !== 'undefined') autosaveStatus.textContent = 'Too many tab/window switches. You have been exited.';
+    // Force exit: POST to force-exit endpoint
+    fetch(window.location.pathname.replace(/editor\/$/, 'force-exit/'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+      },
+      body: JSON.stringify({reason: 'proctoring_breach'})
+    })
+    .then(resp => resp.json())
+    .then(data => {
+      if (data.redirect_url) {
+        window.location.href = data.redirect_url;
+      } else {
+        window.location.reload();
+      }
+    });
+  }
+}
+function incrementWarning() {
+  let count = getWarningCount() + 1;
+  setWarningCount(count);
+  showTabWarning();
+  handleProctoringBreach();
+}
+document.addEventListener('visibilitychange', function() {
+  enforceProctoring();
+  if (document.visibilityState === 'hidden') {
+    incrementWarning();
+  }
+});
+window.addEventListener('blur', function() {
+  // Only increment if essay is visible and initialized
+  const essayVisible = document.getElementById('essay-container').style.display === 'block';
+  if (essayVisible && window.__essayLogicInitialized) {
+    incrementWarning();
+  }
+});
+window.addEventListener('DOMContentLoaded', function() {
+  hideNavBar();
+  setWarningCount(0); // Reset warning counter on every attempt
+  document.getElementById('essay-container').style.display = 'none';
+  document.getElementById('start-modal').style.display = 'block';
+  showOverlay();
+});
+
+// --- ESSAY LOGIC ---
+let lastSavedContent, lastSaveTime = 0, autosaveInterval = 30000, saveInProgress = false;
+let timerCount, submitBtn, autosaveStatus, essayForm, textarea, timerInterval, typingTimer;
+function initEssayLogic() {
+  // Only initialize once per show
+  if (window.__essayLogicInitialized) return;
+  window.__essayLogicInitialized = true;
+  setWarningCount(getWarningCount()); // Ensure warning count is loaded from sessionStorage
+  timerCount = document.getElementById('timer-count');
+  submitBtn = document.getElementById('submit-btn');
+  autosaveStatus = document.getElementById('autosave-status');
+  essayForm = document.getElementById('essay-form');
+  textarea = document.getElementById('essay-content');
+  lastSavedContent = textarea.value;
+  // Block copy, cut, paste for proctoring
+  ['copy', 'cut', 'paste'].forEach(function(evt) {
+    textarea.addEventListener(evt, function(e) {
+      e.preventDefault();
+      autosaveStatus.textContent = 'Copy, cut, and paste are disabled during this essay.';
+    });
+  });
+  textarea.addEventListener('input', function() { updateCounters(); });
+  // Timer
+  let timerSeconds = parseInt(timerCount.textContent);
+  function tick() {
+    if (timerSeconds > 0) {
+      timerSeconds--;
+      timerCount.textContent = timerSeconds;
+      if (timerSeconds === 0) {
+        submitBtn.disabled = true;
+        autosaveStatus.textContent = 'Time expired. Essay will be auto-submitted.';
+        essayForm.submit();
+      }
+    }
+  }
+  timerInterval = setInterval(tick, 1000);
+  // Autosave
+  function autosave() {
+    if (saveInProgress) return;
+    let content = textarea.value;
+    if (content === lastSavedContent) return;
+    let now = Date.now();
+    if (now - lastSaveTime < 10000) return; // 10s min interval
+    saveInProgress = true;
+    autosaveStatus.textContent = 'Saving...';
+    fetch(window.location.pathname.replace(/editor\/$/, 'save-draft/'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+      },
+      body: JSON.stringify({content: content})
+    })
+    .then(resp => resp.json())
+    .then(data => {
+      if (data.success) {
+        lastSavedContent = content;
+        lastSaveTime = Date.now();
+        autosaveStatus.textContent = 'Saved at ' + new Date(data.saved_at).toLocaleTimeString();
+        document.getElementById('word-count').textContent = data.word_count;
+        document.getElementById('char-count').textContent = data.character_count;
+        document.getElementById('para-count').textContent = data.paragraph_count;
+      } else {
+        autosaveStatus.textContent = 'Autosave failed: ' + (data.error || 'Unknown error');
+      }
+    })
+    .catch(() => {
+      autosaveStatus.textContent = 'Network error during autosave.';
+    })
+    .finally(() => {
+      saveInProgress = false;
+    });
+  }
+  setInterval(autosave, autosaveInterval);
+  // Debounced typing
+  textarea.addEventListener('input', function() {
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(autosave, 2000);
+  });
+  // Warn before leaving
+  window.addEventListener('beforeunload', function(e) {
+    if (textarea.value !== lastSavedContent) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+  // Submit confirmation
+  essayForm.addEventListener('submit', function(e) {
+    if (!confirm('Are you sure you want to submit your essay? You cannot edit after submission.')) {
+      e.preventDefault();
+    }
+  });
+  updateCounters();
+}
+function updateCounters() {
+  let text = textarea.value.trim();
+  let words = text ? text.split(/\s+/).length : 0;
+  let chars = text.length;
+  let paras = text ? text.split(/\n+/).filter(p => p.trim().length > 0).length : 0;
+  document.getElementById('word-count').textContent = words;
+  document.getElementById('char-count').textContent = chars;
+  document.getElementById('para-count').textContent = paras;
+}
+</script>
+{% endblock %}
+
+{% block title %}
+{{ topic.title }}
+{% endblock %}
