@@ -613,9 +613,9 @@ class EssayScorer:
             }
 
 
-        # ==========================================================
-        # RELEVANCE
-        # ==========================================================
+    # ==========================================================
+    # RELEVANCE
+    # ==========================================================
         def analyze_relevance(self, content, topic):
             # Use pre-generated semantic keywords from topic
             topic_keywords = getattr(topic, "semantic_keywords", None) or []
@@ -671,9 +671,9 @@ class EssayScorer:
                 "coverage_ratio": coverage_ratio,
             }
 
-            # ==========================================================
-            # FINAL SCORE
-            # ==========================================================
+        # ==========================================================
+        # FINAL SCORE
+        # ==========================================================
 
         def calculate_final_score(self, scores):
             # Final professional weights

@@ -72,5 +72,68 @@
       Your attempt was cancelled due to a proctoring violation (tab/window switch limit exceeded). Score: 0
     </div>
   {% endif %}
+
+  <div id="ai-report-section" style="margin-top:2em;">
+    <button id="generate-ai-report-btn" class="btn btn-primary" type="button" {% if attempt.ai_report %}disabled{% endif %}>
+      <i class="bi bi-robot me-1"></i> Generate AI Report
+    </button>
+    <div id="ai-report-loading" style="display:none; margin-top:1em;">
+      <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+      <span class="ms-2">Generating AI report...</span>
+    </div>
+    <div id="ai-report-result" style="margin-top:1em;">
+      {% if attempt.ai_report %}
+        <div class='alert alert-success'><strong>AI Report:</strong><br><pre style='white-space:pre-wrap;'>{{ attempt.ai_report }}</pre></div>
+      {% endif %}
+    </div>
+    {{ attempt.content|default:''|json_script:"essay-content-json" }}
+    <script id="attempt-id" type="application/json">{{ attempt.id }}</script>
+    <script id="report-generated" type="application/json">{{ attempt.ai_report|yesno:'true,false' }}</script>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const btn = document.getElementById('generate-ai-report-btn');
+      const loading = document.getElementById('ai-report-loading');
+      const resultDiv = document.getElementById('ai-report-result');
+      let reportGenerated = JSON.parse(document.getElementById('report-generated').textContent);
+      if (reportGenerated) {
+        btn.disabled = true;
+      }
+      btn.addEventListener('click', async function() {
+        if (reportGenerated) return;
+        btn.disabled = true;
+        loading.style.display = 'block';
+        resultDiv.innerHTML = '';
+        try {
+          const essayContent = JSON.parse(document.getElementById('essay-content-json').textContent);
+          const parsedAttemptId = JSON.parse(document.getElementById('attempt-id').textContent);
+          const response = await fetch("/essays/generate-ai-report/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || ''
+            },
+            body: JSON.stringify({ essay: essayContent, attempt_id: parsedAttemptId })
+          });
+          const data = await response.json();
+          if (data.success && (data.response || data.result || data.message)) {
+            const report = data.response || data.result || data.message;
+            resultDiv.innerHTML = `<div class='alert alert-success'><strong>AI Report:</strong><br><pre style='white-space:pre-wrap;'>${report}</pre></div>`;
+            reportGenerated = true;
+            btn.disabled = true;
+          } else {
+            resultDiv.innerHTML = `<div class='alert alert-danger'>Failed to generate AI report. ${data.error ? data.error : 'Please try again later.'}</div>`;
+            btn.disabled = false;
+          }
+        } catch (err) {
+          resultDiv.innerHTML = `<div class='alert alert-danger'>Error: ${err.message || err}</div>`;
+          btn.disabled = false;
+        } finally {
+          loading.style.display = 'none';
+        }
+      });
+    });
+  </script>
 </div>
 {% endblock %}

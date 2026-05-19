@@ -105,6 +105,7 @@ class EssayAttempt(models.Model):
 	word_count = models.PositiveIntegerField(default=0)
 	character_count = models.PositiveIntegerField(default=0)
 	paragraph_count = models.PositiveIntegerField(default=0)
+	ai_report = models.TextField(blank=True, null=True, help_text="Saved AI-generated report for this attempt.")
 	started_at = models.DateTimeField(auto_now_add=True)
 	submitted_at = models.DateTimeField(null=True, blank=True)
 	graded_at = models.DateTimeField(null=True, blank=True)

@@ -101,6 +101,23 @@ def dashboard(request):
     pending_orders = Order.objects.filter(user=request.user, status='PENDING').select_related('subject')
     my_applications = JobApplication.objects.filter(user=request.user).select_related('job').order_by('-applied_at')
     streak_obj, created = UserStreak.objects.get_or_create(user=request.user)
+    # --- Essay Attempts ---
+    from essays.models import EssayAttempt, EssayTopic
+    all_essay_attempts = EssayAttempt.objects.filter(user=request.user).select_related('essay_topic').order_by('-created_at')
+
+    # --- Mock Exam Attempts ---
+    from curriculum.models import Topic
+    from assessments.models import Exam
+    mock_exam_topics = Topic.objects.filter(topic_type='exam')
+    mock_exam_topic_ids = list(mock_exam_topics.values_list('id', flat=True))
+    # Find all exams for these topics
+    mock_exam_attempts = []
+    try:
+        from assessments.models import StudentExamAttempt
+        mock_exam_attempts = StudentExamAttempt.objects.filter(user=request.user).select_related('exam', 'exam__topic').order_by('-completed_at')
+    except Exception:
+        pass
+
     context = {
         'user': request.user,
         'course_data': course_data,
@@ -108,9 +125,11 @@ def dashboard(request):
         'total_courses': user_enrollments.count(),
         'total_tests_attempted': total_tests_attempted,
         'avg_score': avg_score,
-        'pending_orders': pending_orders, # Add this
-        'my_applications': my_applications, # <--- CRITICAL FOR DASHBOARD
-        'streak': streak_obj, # <--- Add this
+        'pending_orders': pending_orders,
+        'my_applications': my_applications,
+        'streak': streak_obj,
+        'all_essay_attempts': all_essay_attempts,
+        'mock_exam_attempts': mock_exam_attempts,
     }
     return render(request, 'core/dashboard.html', context)
 

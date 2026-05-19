@@ -13,6 +13,9 @@ from .views import (
     ForceExitEssayView,
 )
 
+from .views_ai_report import generate_ai_report
+from .views_attempt_history import essay_attempt_history
+
 app_name = "essays"
 urlpatterns = [
     path('', EssayAttemptListView.as_view(), name='essay_list'),
@@ -24,4 +27,6 @@ urlpatterns = [
     path('<int:id>/submit/', SubmitEssayView.as_view(), name='essay_submit'),
     path('<int:id>/results/', EssayResultsView.as_view(), name='essay_results'),
     path('<int:id>/force-exit/', ForceExitEssayView.as_view(), name='essay_force_exit'),
+    path('generate-ai-report/', generate_ai_report, name='generate_ai_report'),
+    path('history/', essay_attempt_history, name='essay_attempt_history'),
 ]
