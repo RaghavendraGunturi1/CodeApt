@@ -83,7 +83,17 @@
     </div>
     <div id="ai-report-result" style="margin-top:1em;">
       {% if attempt.ai_report %}
-        <div class='alert alert-success'><strong>AI Report:</strong><br><pre style='white-space:pre-wrap;'>{{ attempt.ai_report }}</pre></div>
+        <div class='alert alert-success'><strong>AI Report:</strong><br>
+          <div id="ai-report-markdown">{{ attempt.ai_report|safe }}</div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <script>
+          // Render markdown in the AI report
+          const aiReportDiv = document.getElementById('ai-report-markdown');
+          if (aiReportDiv) {
+            aiReportDiv.innerHTML = marked.parse(aiReportDiv.textContent);
+          }
+        </script>
       {% endif %}
     </div>
     {{ attempt.content|default:''|json_script:"essay-content-json" }}
@@ -119,7 +129,14 @@
           const data = await response.json();
           if (data.success && (data.response || data.result || data.message)) {
             const report = data.response || data.result || data.message;
-            resultDiv.innerHTML = `<div class='alert alert-success'><strong>AI Report:</strong><br><pre style='white-space:pre-wrap;'>${report}</pre></div>`;
+            resultDiv.innerHTML = `<div class='alert alert-success'><strong>AI Report:</strong><br><div id='ai-report-markdown'>${report}</div></div>`;
+            // Render markdown for dynamic response
+            setTimeout(() => {
+              const aiReportDiv = document.getElementById('ai-report-markdown');
+              if (aiReportDiv) {
+                aiReportDiv.innerHTML = marked.parse(aiReportDiv.textContent);
+              }
+            }, 0);
             reportGenerated = true;
             btn.disabled = true;
           } else {
