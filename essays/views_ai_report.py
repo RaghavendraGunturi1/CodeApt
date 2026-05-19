@@ -41,40 +41,10 @@ def generate_ai_report(request):
             return JsonResponse({'success': False, 'error': 'Essay attempt not found.'}, status=404)
         if attempt.ai_report:
             return JsonResponse({'success': True, 'response': attempt.ai_report, 'already_generated': True})
-        # Enforce context limit (32k tokens, ~24,000 words for safety)
-        MAX_WORDS = 24000
-        essay_words = essay_content.split()
-        if len(essay_words) > MAX_WORDS:
-            return JsonResponse({
-                'success': False,
-                'error': f'Essay is too long for AI analysis. Please reduce to under {MAX_WORDS} words.',
-                'context_limit': MAX_WORDS
-            }, status=400)
-        safe_essay_content = ' '.join(essay_words[:MAX_WORDS])
-        prompt = (
-            "Analyze the following essay in detail. Provide a comprehensive report including strengths, "
-            "weaknesses, writing style, coherence, vocabulary, grammar, and suggestions for improvement.\n\nEssay:\n" + safe_essay_content
-        )
-        print(f"[AI REPORT DEBUG] Prompt length: {len(prompt)}")
-        print(f"[AI REPORT DEBUG] Prompt preview: {prompt[:200]}")
-        api_response = requests.post(
-            "https://apifreellm.com/api/v1/chat",
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Authorization": "Bearer apf_t1mih7ihealft5o963v03rjb"
-            },
-            json={"message": prompt},
-            timeout=300  # 5 minutes
-        )
-        if api_response.status_code == 200:
-            result = api_response.json()
-            report = result.get('response') or result.get('result') or result.get('message')
-            if report:
-                attempt.ai_report = report
-                attempt.save(update_fields=['ai_report', 'updated_at'])
-            return JsonResponse({'success': True, 'response': report})
-        else:
-            return JsonResponse({'success': False, 'error': 'AI service error', 'status_code': api_response.status_code}, status=502)
+        # AI report generation is disabled.
+        return JsonResponse({
+            'success': False,
+            'error': 'AI report generation is currently disabled.'
+        }, status=503)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
