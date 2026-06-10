@@ -73,26 +73,45 @@ def submit_code(request, question_id):
             question = get_object_or_404(DailyQuestion, id=question_id)
             test_cases = question.test_cases.all()
             
-            score = 0
             total_cases = test_cases.count()
+            if total_cases == 0:
+                return render(request, 'challenges/code_result_partial.html', {
+                    'score': 0,
+                    'results': [],
+                    'total': 0,
+                    'error': 'No test cases configured.'
+                })
+
+            passed_cases = 0
             results = []
 
-            # ✅ OPTIMIZED: Run against Central Piston Utility in Parallel
-            # Async: enqueue jobs for each test case, return job_ids for polling
-            from assessments.views import enqueue_execution_job
-            job_ids = []
-            for test in test_cases:
-                job_id = enqueue_execution_job(user_code, language, test.input_data, user=request.user, submission_ref=f"challenge-{question_id}-tc{test.id}", queue='practice')
-                job_ids.append(job_id)
-            return JsonResponse({'job_ids': job_ids, 'total': total_cases})
+            # Run test cases synchronously in parallel (bypasses Redis/RQ worker on AWS App Runner)
+            from assessments.views import run_code_piston
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = [
+                    executor.submit(run_code_piston, user_code, language, test.input_data)
+                    for test in test_cases
+                ]
+                for i, future in enumerate(futures):
+                    test = test_cases[i]
+                    try:
+                        actual_output = future.result(timeout=15)
+                        clean_actual = actual_output.strip()
+                        clean_expected = test.expected_output.strip()
+                        
+                        passed = (clean_actual == clean_expected)
+                        if passed:
+                            passed_cases += 1
+                        results.append(passed)
+                    except Exception:
+                        results.append(False)
 
-            # Update Streak (Your existing logic)
-            # Ensure update_user_progress is imported or defined in this file
-            if 'update_user_progress' in globals():
-                update_user_progress(request.user, question, score)
-            
+            # Update Streak/XP only if all test cases passed
+            if passed_cases == total_cases:
+                update_user_progress(request.user, question, 5)
+
             return render(request, 'challenges/code_result_partial.html', {
-                'score': score, 
+                'score': passed_cases, 
                 'results': results,
                 'total': total_cases
             })

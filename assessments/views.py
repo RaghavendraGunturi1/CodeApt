@@ -324,9 +324,20 @@ def submit_section(request, attempt_id):
             attempt.grading_error = ''
             attempt.save()
 
-            # Queue grading job for this attempt (idempotent)
-            from core.services.rq_jobs import enqueue_grading_job
-            transaction.on_commit(lambda: enqueue_grading_job(attempt.id))
+            # Run grading synchronously on commit (bypasses Redis/RQ worker on AWS App Runner)
+            def run_grading():
+                try:
+                    calculate_final_score(attempt)
+                    attempt.grading_status = 'DONE'
+                    attempt.graded_at = timezone.now()
+                    attempt.save()
+                except Exception as e:
+                    attempt.grading_status = 'FAILED'
+                    attempt.grading_error = str(e)
+                    attempt.graded_at = timezone.now()
+                    attempt.save()
+
+            transaction.on_commit(run_grading)
 
             # Increment restriction counter only when a logged-in user's attempt is completed.
             if attempt.user:
